@@ -5,7 +5,7 @@ CFLAGS = -Wall -Wextra -Werror -Iincludes -std=c++98 -MMD
 SRC_DIR = srcs
 OBJ_DIR = objs
 
-SRCS = $(addprefix $(SRC_DIR)/, main.cpp AHttpMessage.cpp)
+SRCS = $(addprefix $(SRC_DIR)/, main.cpp AHttpMessage.cpp Request.cpp)
 OBJS = $(SRCS:$(SRC_DIR)/%.cpp=$(OBJ_DIR)/%.o)
 
 -include $(OBJS:%.o=%.d)
