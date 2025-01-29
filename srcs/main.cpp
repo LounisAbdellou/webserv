@@ -1,10 +1,12 @@
+#include "Webserv.hpp"
+#include <arpa/inet.h>
+#include <csignal>
+#include <cstring>
+#include <fcntl.h>
 #include <iostream>
 #include <string>
-#include <csignal>
-#include "Webserv.hpp"
 
-void  handle_signal(int signal)
-{
+void handle_signal(int signal) {
   (void)signal;
   std::cout << std::endl;
   Webserv::is_running = false;
@@ -16,7 +18,7 @@ int main(int ac, char **av) {
     return 1;
   }
 
-  Webserv     w;
+  Webserv w;
   std::string filename;
 
   if (ac == 2)
@@ -28,8 +30,7 @@ int main(int ac, char **av) {
     signal(SIGINT, handle_signal);
     signal(SIGQUIT, handle_signal);
     w.run();
-  }
-  catch (const std::exception& e) {
+  } catch (const std::exception &e) {
     std::cout << e.what() << std::endl;
   }
   signal(SIGINT, SIG_DFL);
