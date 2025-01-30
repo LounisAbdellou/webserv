@@ -12,6 +12,8 @@ AHttpMessage &AHttpMessage::operator=(const AHttpMessage &src) {
   return *this;
 }
 
+std::string &AHttpMessage::getRawData() { return this->_rawData; }
+
 void AHttpMessage::appendRawData(const std::string &fragment) {
   this->_rawData.append(fragment);
 }

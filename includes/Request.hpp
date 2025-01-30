@@ -7,7 +7,6 @@ class Request : public AHttpMessage {
 private:
   std::string path;
   std::string method;
-  std::string contentType;
 
 public:
   Request();

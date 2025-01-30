@@ -14,6 +14,8 @@ public:
 
   AHttpMessage &operator=(const AHttpMessage &src);
 
+  std::string &getRawData();
+
   void appendRawData(const std::string &fragment);
 
   virtual void parseData() = 0;

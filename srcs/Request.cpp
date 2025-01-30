@@ -4,7 +4,6 @@
 Request::Request() : AHttpMessage() {
   this->path = "";
   this->method = "";
-  this->contentType = "";
 }
 
 Request::Request(const Request &src) : AHttpMessage(src) { *this = src; }
@@ -13,7 +12,6 @@ Request &Request::operator=(const Request &src) {
   if (this != &src) {
     this->path = src.path;
     this->method = src.method;
-    this->contentType = src.contentType;
   }
 
   return *this;
@@ -36,8 +34,4 @@ void Request::parseData() {
       this->path.push_back(this->_rawData[i]);
     }
   }
-
-  // if (this->method == "POST") {
-  //   size_t pos = this->_rawData.find("Content-Type: ");
-  // }
 }
