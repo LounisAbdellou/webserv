@@ -5,8 +5,9 @@
 
 class Request : public AHttpMessage {
 private:
-  std::string path;
-  std::string method;
+  bool _isComplete;
+  std::string _path;
+  std::string _method;
 
 public:
   Request();
@@ -14,6 +15,8 @@ public:
   virtual ~Request() {};
 
   Request &operator=(const Request &src);
+
+  void setIsComplete(bool isComplete);
 
   void parseData();
 };

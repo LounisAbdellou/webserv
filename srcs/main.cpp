@@ -12,7 +12,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-const int PORT = 8080;
+const int PORT = 8081;
 const int MAX_EVENTS = 10;
 
 void setNonBlocking(int fd) {
@@ -109,7 +109,6 @@ int main() {
     return 1;
   }
 
-  // Client *client;
   std::map<int, Client *> clientMap;
 
   while (true) {
@@ -142,18 +141,12 @@ int main() {
           close(clientSocket);
         }
       } else {
-        // handleClient(events[i].data.fd);
         Client *client = clientMap[events[i].data.fd];
 
         if (client->receive()) {
-          Request *req = client->getCurrentRequest();
-
-          std::cout << req->getRawData() << std::endl;
-
-          std::string response =
-              "HTTP/1.1 200 OK\nContent-Length: 13\n\nHello World!";
-
-          send(events[i].data.fd, response.c_str(), response.size(), 0);
+          client->sendResponse();
+          clientMap.erase(events[i].data.fd);
+          delete client;
         }
       }
     }

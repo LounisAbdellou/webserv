@@ -1,5 +1,6 @@
 #include "Client.hpp"
 #include <sys/socket.h>
+#include <unistd.h>
 
 Client::Client() : _serverFd(-1), _clientFd(-1) {}
 
@@ -13,7 +14,7 @@ Client::Client(const Client &src)
 
 Client &Client::operator=(const Client &src) {
   if (this != &src) {
-    this->_currentRequest = src._currentRequest;
+    this->_requestQueue = src._requestQueue;
   }
 
   return *this;
@@ -21,25 +22,35 @@ Client &Client::operator=(const Client &src) {
 
 int Client::getServerFd() const { return _serverFd; }
 
-Request *Client::getCurrentRequest() const { return _currentRequest; }
+// Request *Client::getCurrentRequest() const { return _currentRequest; }
 
+#include <iostream>
 bool Client::receive() {
   bool hasEof = true;
   char buffer[BUFFER_SIZE];
 
-  if (!this->_currentRequest) {
-    this->_currentRequest = new Request();
-  }
+  this->_requestQueue.push(new Request());
 
   while (true) {
     ssize_t bytesRead = recv(this->_clientFd, buffer, BUFFER_SIZE - 1, 0);
-
-    if (bytesRead < 1) {
-      break;
+    // std::cout << bytesRead << std::endl;
+    if (bytesRead > 0) {
+      this->_requestQueue.back()->appendRawData(buffer);
     }
 
-    this->_currentRequest->appendRawData(buffer);
+    if (bytesRead < BUFFER_SIZE - 1) {
+      break;
+    }
   }
 
   return hasEof;
 }
+
+void Client::sendResponse() const {
+  std::string response =
+      "HTTP/1.1 200 OK\r\nContent-Length: 12\r\n\r\nHello World!";
+
+  send(this->_clientFd, response.c_str(), response.size(), 0);
+}
+
+Client::~Client() { close(this->_clientFd); }
