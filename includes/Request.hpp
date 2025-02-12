@@ -41,6 +41,7 @@ public:
   void parseHeader();
   size_t parseRequestLine(const std::string &header);
 
+  void clean();
   void appendRawHeader(std::string &fragment);
   void appendRawBody(std::string &fragment);
   void appendRawData(std::string &fragment);

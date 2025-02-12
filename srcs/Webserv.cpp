@@ -280,7 +280,6 @@ void  Webserv::run()
     {
       if (this->_sockets.find(events[i].data.fd) != this->_sockets.end())
       {
-        Client* client = new Client(events[i].data.fd);
         struct sockaddr_in c_addr;
         socklen_t addr_len = sizeof(c_addr);
         int client_fd = accept(events[i].data.fd, (struct sockaddr *)&c_addr, &addr_len);
@@ -288,6 +287,7 @@ void  Webserv::run()
           this->throwError("Accept failed");
         e.events = EPOLLIN | EPOLLOUT;
         e.data.fd = client_fd;
+        Client* client = new Client(events[i].data.fd, client_fd);
         epoll_ctl(this->_epoll_fd, EPOLL_CTL_ADD, client_fd, &e);
         if (this->_clients[client_fd])
           delete this->_clients[client_fd];

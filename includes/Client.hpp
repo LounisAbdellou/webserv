@@ -22,6 +22,7 @@ public:
   Request &getRequest();
 
   bool receive();
+  bool isClose();
   void sendResponse() const;
 };
 
