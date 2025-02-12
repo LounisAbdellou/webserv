@@ -24,21 +24,18 @@ int Client::getServerFd() const { return _serverFd; }
 Request &Client::getRequest() { return this->_request; }
 
 bool Client::receive() {
-  bool hasEof = true;
   char buffer[BUFFER_SIZE];
 
   while (true) {
-    ssize_t bytesRead = recv(this->_clientFd, buffer, BUFFER_SIZE - 1, 0);
+    ssize_t bytesRead =
+        recv(this->_clientFd, buffer, BUFFER_SIZE - 1, MSG_DONTWAIT);
+
     buffer[bytesRead] = '\0';
 
     if (bytesRead > 0) {
       std::string fragment = buffer;
 
-      // std::cout << fragment << "FRAGMENT" << std::endl;
-
-      // if (!this->_request) {
-      //   this->_request = new Request(this->_clientFd);
-      // }
+      std::cout << fragment << "FRAGMENT" << std::endl;
 
       this->_request.appendRawData(fragment);
     }
@@ -48,18 +45,19 @@ bool Client::receive() {
     }
   }
 
-  return hasEof;
+  // return this->_request.getStatus() == REQUEST_COMPLETE;
+  return true;
 }
 
-void Client::sendResponse() const {
+void Client::sendResponse() {
   std::string response =
       "HTTP/1.1 200 OK\r\nContent-Length: 12\r\n\r\nHello World!";
 
   std::cout << this->_request.getRawData() << std::endl;
 
-  // delete this->_request;
+  this->_request.clean();
 
   send(this->_clientFd, response.c_str(), response.size(), 0);
 }
 
-Client::~Client() { close(this->_clientFd); }
+bool Client::isClose() const { return true; }

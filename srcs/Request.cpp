@@ -1,8 +1,10 @@
 #include "Request.hpp"
 #include "AHttpMessage.hpp"
+#include "Parser.hpp"
 #include <cctype>
 #include <iostream>
 #include <sstream>
+#include <vector>
 
 long long Request::_strtoll(const std::string &str, int base) const {
   long long result = -1;
@@ -37,11 +39,8 @@ long long Request::_strtoll(const std::string &str, int base) const {
 }
 
 Request::Request() : AHttpMessage() {
-  this->_path = "";
-  this->_method = "";
   this->_status = REQUEST_HEADER_INCOMPLETE;
-  // this->_setters["Content-Length"] = &Request::setContentLength;
-  // this->_headerAttributes["Content-Length"] = "";
+  this->_setters["Content-Length"] = &Request::setContentLength;
 }
 
 Request::Request(const Request &src) : AHttpMessage(src) { *this = src; }
@@ -57,6 +56,8 @@ Request &Request::operator=(const Request &src) {
   return *this;
 }
 
+int Request::getContentLength() const { return this->_contentLength; }
+
 RequestStatus Request::getStatus() const { return this->_status; }
 
 void Request::set(const std::string &key, const std::string &value) {
@@ -64,86 +65,35 @@ void Request::set(const std::string &key, const std::string &value) {
     return;
   }
 
-  // this->_setters[key] = value;
+  (this->*_setters[key])(value);
+}
+
+void Request::setContentLength(const std::string &contentLength) {
+  this->_contentLength = this->_strtoll(contentLength, 10);
 }
 
 void Request::parseHeader() {
-  size_t i = 0;
-  size_t j = 0;
-  std::string key;
-  std::string value;
-  int spaceCount = 0;
-  bool isFirstLine = true;
+  size_t begin = 0;
 
-  while (i < this->_rawHeader.size()) {
-    if (!isFirstLine) {
-      j = this->_rawHeader.find(": ", i);
-      if (j == std::string::npos) {
-        break;
-      }
-
-      key = this->_rawHeader.substr(i, j - i);
-      i = j + 2;
-
-      j = this->_rawHeader.find("\r\n", i);
-      if (j == std::string::npos) {
-        break;
-      }
-
-      value = this->_rawHeader.substr(i, j - i);
-      i = j + 2;
-
-      std::cout << key << " -> " << value << std::endl;
-
-      continue;
-    }
-
-    if (spaceCount < 2) {
-      j = this->_rawHeader.find(" ", i);
-      if (j == std::string::npos) {
-        break;
-      }
-
-      value = this->_rawHeader.substr(i, j - i);
-      i = j + 1;
-
-      if (spaceCount == 0) {
-        this->_method = value;
-      } else if (spaceCount == 1) {
-        this->_path = value;
-      }
-
-      spaceCount++;
-    } else {
-      isFirstLine = false;
-      j = this->_rawHeader.find("\r\n", i);
-      if (j == std::string::npos) {
-        break;
-      }
-
-      this->_protocol = this->_rawHeader.substr(i, j - i);
-      i = j + 2;
-    }
+  std::vector<std::string> requestLine =
+      Parser::getRequestLine(this->_rawHeader, begin);
+  if (requestLine.size() < 3) {
+    return;
   }
 
-  // if (this->_method != "GET" && this->_method != "POST" &&
-  //     this->_method != "DELETE") {
-  //   this->_status = REQUEST_BAD;
-  // } else if (this->_method == "POST") {
-  //   std::string encoding = this->findHeaderAttribute("Transfer-Encoding");
-  //
-  //   if (encoding == "chunked") {
-  //     this->_isChunked = true;
-  //   }
-  //
-  //   long long contentLength =
-  //       this->_strtoll(this->findHeaderAttribute("Content-Length"), 10);
-  //   if (contentLength <= 0 && !this->_isChunked) {
-  //     this->_status = REQUEST_BAD;
-  //     return;
-  //   }
-  //
-  //   this->_contentLength = contentLength;
+  this->_method = requestLine[0];
+  this->_path = requestLine[1];
+  this->_protocol = requestLine[2];
+
+  while (begin < this->_rawHeader.size()) {
+    std::vector<std::string> attribute =
+        Parser::getHeaderAttr(this->_rawHeader, begin);
+    if (attribute.size() < 2) {
+      return;
+    }
+
+    this->set(attribute[0], attribute[1]);
+  }
 }
 
 // this->_status = REQUEST_INCOMPLETE;
@@ -200,4 +150,15 @@ void Request::appendRawData(std::string &fragment) {
   default:
     return;
   }
+}
+
+void Request::clean() {
+  this->_path.clear();
+  this->_method.clear();
+  this->_protocol.clear();
+  this->_rawData.clear();
+  this->_rawHeader.clear();
+  this->_rawBody.clear();
+  this->_contentLength = 0;
+  this->_status = REQUEST_HEADER_INCOMPLETE;
 }

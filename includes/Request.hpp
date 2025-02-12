@@ -33,10 +33,11 @@ public:
 
   Request &operator=(const Request &src);
 
-  void set(const std::string &key, const std::string &value);
-
-  int &getContentLength() const;
+  int getContentLength() const;
   RequestStatus getStatus() const;
+
+  void set(const std::string &key, const std::string &value);
+  void setContentLength(const std::string &contentLength);
 
   void parseHeader();
   size_t parseRequestLine(const std::string &header);

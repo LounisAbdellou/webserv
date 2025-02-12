@@ -99,6 +99,45 @@ std::string Parser::getLocation(const std::string& line)
   return location;
 }
 
+std::vector<std::string> Parser::getRequestLine(const std::string &header, size_t &begin) {
+	std::vector<std::string> requestLine;
+
+	while (requestLine.size() < 3) {
+		const char *separator = (requestLine.size() < 2) ? " " : "\r\n";
+		size_t end = header.find(separator, begin);
+
+		if (end == std::string::npos) { 
+			return requestLine;
+		}
+
+		requestLine.push_back(header.substr(begin, end - begin));
+	}
+
+	return requestLine;
+}
+
+std::vector<std::string> Parser::getHeaderAttr(const std::string &header, size_t &begin) {
+	std::vector<std::string> attribute;
+	size_t end = header.find(": ", begin);
+
+	if (end == std::string::npos) {
+		return attribute;
+	}
+
+	attribute.push_back(header.substr(begin, end - begin));
+	begin = end + 2;
+
+	end = header.find("\r\n", begin);
+	if (end == std::string::npos) {
+		return attribute;
+	}
+
+	attribute.push_back(header.substr(begin, end - begin));
+	begin = end + 2;
+
+	return attribute;
+}
+
 void  Parser::throwError(std::string message, Location* location)
 {
   if (location)

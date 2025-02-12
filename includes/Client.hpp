@@ -14,7 +14,7 @@ private:
 public:
   Client(int serverFd, int clientFd);
   Client(const Client &src);
-  ~Client();
+  ~Client() {};
 
   Client &operator=(const Client &src);
 
@@ -22,8 +22,8 @@ public:
   Request &getRequest();
 
   bool receive();
-  bool isClose();
-  void sendResponse() const;
+  bool isClose() const;
+  void sendResponse();
 };
 
 #endif // !CLIENT_HPP
