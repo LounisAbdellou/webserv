@@ -94,10 +94,9 @@ void Request::parseHeader() {
 
     this->set(attribute[0], attribute[1]);
   }
-}
 
-// this->_status = REQUEST_INCOMPLETE;
-// }
+  this->_status = REQUEST_INCOMPLETE;
+}
 
 void Request::appendRawHeader(std::string &fragment) {
   size_t pos = fragment.find("\r\n\r\n");
