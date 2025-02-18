@@ -14,9 +14,9 @@ public:
 
   AHttpMessage &operator=(const AHttpMessage &src);
 
-  void appendRawData(const std::string &fragment);
+  std::string getRawData() const;
 
-  virtual void parseData() = 0;
+  virtual void appendRawData(std::string &fragment) = 0;
 };
 
 #endif // !A_HTTP_MESSAGE_HPP

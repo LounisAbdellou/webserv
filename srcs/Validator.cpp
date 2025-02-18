@@ -29,6 +29,7 @@ void  Validator::init()
   Validator::_validators["method"] = &Validator::validateMethod;
   Validator::_validators["ip"] = &Validator::validateIp;
   Validator::_validators["port"] = &Validator::validatePort;
+  Validator::_validators["protocol"] = &Validator::validateProtocol;
 }
 
 bool  Validator::validate(std::string key, std::string& value)
@@ -115,7 +116,15 @@ bool  Validator::validateFile(std::string& value)
 
 bool  Validator::validateMethod(std::string& value)
 {
-  (void)value;
+	if (value != "GET" || value != "POST" || value != "DELETE")
+		return false;
+  return true;
+}
+
+bool  Validator::validateProtocol(std::string& value)
+{
+	if (value != "HTTP/1.1")
+		return false;
   return true;
 }
 

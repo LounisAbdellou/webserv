@@ -1,28 +1,28 @@
-#ifndef __CLIENT__
-#define __CLIENT__
+#ifndef CLIENT_HPP
+#define CLIENT_HPP
 
-#include <string>
+#define BUFFER_SIZE 1024
+
 #include "Request.hpp"
 
 class Client {
-  public:
-    Client(int server_fd);
-    ~Client();
-    
-    bool  receive() const;
-    bool  isClose();
+private:
+  const int _serverFd;
+  const int _clientFd;
+  Request _request;
 
-    int        getServerFd() const;
-    Request&   getRequest();
+public:
+  Client(int serverFd, int clientFd);
+  Client(const Client &src);
+  ~Client() {};
 
-  
-  private:
-    Client();
-    Client(const Client& cpy);
-    Client& operator=(Client& cpy);
+  Client &operator=(const Client &src);
 
-    int     _server_fd;
-    Request _request;
+  int getServerFd() const;
+  Request &getRequest();
+
+  bool receive();
+  bool isClose() const;
 };
 
-#endif
+#endif // !CLIENT_HPP

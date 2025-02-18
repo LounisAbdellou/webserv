@@ -10,6 +10,7 @@
 #include "Parser.hpp"
 #include "Server.hpp"
 #include "Client.hpp"
+#include <fcntl.h>
 #include "Validator.hpp"
 #include <sys/types.h>    // Définitions de types (socklen_t, etc.)
 #include <sys/socket.h>   // socket(), bind(), listen(), accept(), send(), recv()
