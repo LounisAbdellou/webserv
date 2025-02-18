@@ -4,7 +4,7 @@ Client::Client()
 {
 }
 
-Client::Client(int server_fd) : _server_fd(server_fd)
+Client::Client(int server_fd, int client_fd) : _server_fd(server_fd), _client_fd(client_fd)
 {
 }
 
@@ -36,6 +36,16 @@ bool  Client::isClose()
 int       Client::getServerFd() const
 {
   return this->_server_fd;
+}
+
+int       Client::getClientFd() const
+{
+  return this->_client_fd;
+}
+
+std::string Client::getPath() const
+{
+  return "/test";
 }
 
 Request&  Client::getRequest()

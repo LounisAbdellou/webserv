@@ -22,3 +22,8 @@ void  Request::clean()
 {
 
 }
+
+bool  Request::error() const
+{
+  return false;
+}

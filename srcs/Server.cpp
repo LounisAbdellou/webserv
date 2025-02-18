@@ -83,14 +83,72 @@ std::vector<std::string>::iterator  Server::iterator(int pos)
   return it;
 }
 
+// 1. Construire un chemin vers la ressource demandee 
+// 2. Extraire les infos de cette ressource pour set le corps de la response
 void  Server::handle(Request& request)
 {
-  // Gestion des erreurs
-  // Construction de la response a partir de la request 
-  // Gestion des CGI OU Recuperation du contenu du fichier demande
-  // ...
-  // Destruction de la request
+  // 1. a. Verifier que le path commence par une location
+  // Si oui => remplacer cette portion du path par le root de la location (ou du server si non set)
+  // Si non => ajouter le root du server au debut du path 
+  std::string ressource = request.getPath();
+  Location*   location = this->handleRoot(ressource);
+
+  if (request.getStatus() == 1)
+    return this->handleError(ressource, location, 400);
+  
+  // 1. b. Verifier l'acces au chemin du fichier
+  // Si oui => ajouter l'index de la location ou du server si non set 
+  // Si non => ajouter 'index.html' comme nom de fichier 
+
+  if (access(ressource.c_str(), F_OK) == -1)
+  {
+    // le fichier n'existe pas ou il s'agit d'un dossier 
+    if (ressource.back() != '/') 
+      ressource.append("/");
+    if (location && location->isset("index")) 
+      ressource.append(location->get("index"));
+    else
+      ressource.append(this->_index);
+    if (access(ressource.c_str(), F_OK) == -1)
+      return this->handleError(ressource, location, 404);
+  }
+
+  // 2. a. Verifier si le fichier est un cgi 
+  // Si oui => envoyer vers une fonction qui gere les cgi
+  // Si non => continuer
+  
+  // 2. c. Envoyer vers une fonction qui extrait le contenu du fichier pour set le corps de la response
+
+
+  // Nettoyage de la request
   request.clean();
+}
+
+Location*  Server::handleRoot(std::string& ressource) 
+{
+  std::string pattern;
+  Location*   location = NULL;
+
+  for (std::map<std::string, Location*>::iterator it = this->_locations.begin(); it != this->_locations.end(); ++it)
+  {
+    if (ressource.find(it->first) == 0)
+    {
+      pattern = it->first;
+      location = it->second;
+      break;
+    }
+  }
+  
+  if (!location)
+  {
+    ressource.insert(0, this->_root)
+    return NULL;
+  }
+  if (location->isset("root"))
+    ressource.replace(0, pattern.length(), location->get("root"));
+  else
+    ressource.replace(0, pattern.length(), this->_root);
+  return location;
 }
 
 void  Server::send(int fd)

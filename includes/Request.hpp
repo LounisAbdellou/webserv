@@ -9,6 +9,7 @@ class Request {
     ~Request();
 
     void  clean();
+    bool  error() const;
     
   private:
     Request(const Request& cpy);

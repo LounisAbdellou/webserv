@@ -10,6 +10,7 @@
 #include "Request.hpp"
 #include "Response.hpp"
 #include <sys/socket.h>   // socket(), bind(), listen(), accept(), send(), recv()
+#include <unistd.h>
 
 class Server {
   public:
@@ -44,18 +45,21 @@ class Server {
     std::string                                             _allow_listing;
     std::string                                             _redirect;
 
-    void          setListen(std::string& value);
-    void          setServerName(std::string& value);
-    void          setRoot(std::string& value);
-    void          setIndex(std::string& value);
-    void          setErrorPage(std::string& value);
-    void          setAllowedMethod(std::string& value);
-    void          setAllowListing(std::string& value);
-    void          setRedirect(std::string& value);
+    void                                                    setListen(std::string& value);
+    void                                                    setServerName(std::string& value);
+    void                                                    setRoot(std::string& value);
+    void                                                    setIndex(std::string& value);
+    void                                                    setErrorPage(std::string& value);
+    void                                                    setAllowedMethod(std::string& value);
+    void                                                    setAllowListing(std::string& value);
+    void                                                    setRedirect(std::string& value);
 
-    std::string  getServerName() const;
-    std::string  getListen() const;
-    std::string  getIndex() const;
+    std::string                                             getServerName() const;
+    std::string                                             getListen() const;
+    std::string                                             getIndex() const;
+    std::string                                             getLocation();
+
+    Location*                                               handleRoot(std::string& ressource);
 };
 
 std::ostream&  operator<<(std::ostream& cout, const Server& server);
