@@ -2,12 +2,17 @@
 
 Location::Location()
 {
+  _setters["key"] = &Location::setKey;
   _setters["root"] = &Location::setRoot;
   _setters["index"] = &Location::setIndex;
   _setters["error_page"] = &Location::setErrorPage;
   _setters["allowed_method"] = &Location::setAllowedMethod;
   _setters["allow_listing"] = &Location::setAllowListing; 
   _setters["redirect"] = &Location::setRedirect;
+  
+  _getters["index"] = &Location::getIndex;
+  _getters["root"] = &Location::getRoot;
+  _getters["key"] = &Location::getKey;
 }
 
 Location::Location(const Location& cpy)
@@ -32,6 +37,21 @@ bool  Location::has(const std::string key) const
 void  Location::set(const std::string key, const std::string value)
 {
   (this->*_setters[key])(value);
+}
+
+bool  Location::isset(const std::string key) const
+{
+  return (!(this->*_getters.at(key))().empty());
+}
+
+std::string  Location::get(const std::string key) const 
+{
+  return (this->*_getters.at(key))();
+}
+
+void  Location::setKey(const std::string key)
+{
+  this->_key = key;
 }
 
 void  Location::setRoot(const std::string value)
@@ -64,3 +84,17 @@ void  Location::setRedirect(const std::string value)
   this->_redirect = value;
 }
 
+std::string  Location::getIndex() const
+{
+  return this->_index;
+}
+
+std::string  Location::getRoot() const
+{
+  return this->_root;
+}
+
+std::string  Location::getKey() const
+{
+  return this->_key;
+}

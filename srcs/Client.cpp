@@ -19,6 +19,8 @@ Client &Client::operator=(const Client &src) {
 
 int Client::getServerFd() const { return _serverFd; }
 
+int Client::getClientFd() const { return _clientFd; }
+
 Request &Client::getRequest() { return this->_request; }
 
 bool Client::receive() {

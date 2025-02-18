@@ -71,6 +71,20 @@ std::string  Server::get(const std::string key) const
   return (this->*_getters.at(key))();
 }
 
+void  Server::setDefault()
+{
+  if (this->_listen.empty())
+    this->set("listen", "80");
+  if (this->_index.empty())
+    this->_index = "index.html";
+  if (this->_error_page.empty())
+    this->_error_page = "./error/error.html";
+  if (this->_allow_listing.empty())
+    this->_allow_listing = "false";
+  if (this->_allowed_method.empty())
+    this->_allowed_method = "ALL";
+}
+
 std::vector<std::string>::iterator  Server::iterator(int pos)
 {
   if (pos < 0 || pos > (int)this->_listen.size())
@@ -85,12 +99,179 @@ std::vector<std::string>::iterator  Server::iterator(int pos)
 
 void  Server::handle(Request& request)
 {
-  // Gestion des erreurs
-  // Construction de la response a partir de la request 
-  // Gestion des CGI OU Recuperation du contenu du fichier demande
-  // ...
-  // Destruction de la request
+  std::string ressource = request.getPath();
+  
+  Location* location = this->getLocation(ressource);
+  
+  this->handlePath(ressource, location, request);
+
+  std::string ext = Parser::getExtension(ressource);
+  std::string body;
+
+  if (!ext.compare(".php") || !ext.compare(".py"))
+    body = this->handleCgi();
+  else 
+    body = this->handleAction(ressource, request, location);
+
+  std::cout << "body : '" <<  body << "'" << std::endl;
+
+  // 3. Construire la response a partir du chemin + body 
+  this->_response.generate(body, request, ext);
   request.clean();
+}
+
+void  Server::handlePath(std::string& ressource, Location* location, Request& request)
+{
+  if (request.getStatus() == REQUEST_BAD)
+    return this->handleError(request.getResponseCode(), ressource, location);
+  if (location)
+  {
+    std::string pattern = location->get("key");
+    if (location->isset("root"))
+      ressource.replace(0, pattern.length(), location->get("root"));
+    else
+      ressource.replace(0, pattern.length(), this->_root);
+  }
+  else
+    ressource.insert(0, this->_root);
+  
+  if (ressource[0] != '/')
+    ressource.insert(0, "/");  
+  ressource.insert(0, ".");
+  
+  this->handleFile(ressource, location, request);
+}
+
+void  Server::handleFile(std::string& ressource, Location* location, Request& request)
+{
+  (void)request;
+  /*if (!method.compare("POST"))*/
+  /*  return this->handleFilePost(ressource, location);*/
+  if (access(ressource.c_str(), F_OK) == 0)
+  {
+    struct stat sb;
+    if (stat(ressource.c_str(), &sb) == -1) 
+      return this->handleError("404 Not Found 1", ressource, location);
+    if (S_ISDIR(sb.st_mode) && access(ressource.c_str(), X_OK) == 0)
+    {
+      if (ressource[ressource.length() - 1] != '/')
+        ressource.append("/");
+      if (location && location->isset("index")) 
+        ressource.append(location->get("index"));
+      else
+        ressource.append(this->_index);
+    }
+    if (access(ressource.c_str(), F_OK) == -1)
+      return this->handleError("404 Not Found 2", ressource, location);
+  }
+  else
+    return this->handleError("404 Not Found 3", ressource, location);
+
+  if (access(ressource.c_str(), R_OK) == -1)
+    return this->handleError("403 Unauthorized", ressource, location);
+}
+
+/*void  Server::handleFilePost(std::string& ressource, Location* location)*/
+/*{*/
+/**/
+/*}*/
+
+Location* Server::getLocation(const std::string& ressource)
+{
+  for (std::map<std::string, Location*>::iterator it = this->_locations.begin(); it != this->_locations.end(); ++it)
+  {
+    if (ressource.find(it->first) == 0)
+      return it->second;
+  }
+  return NULL;
+}
+
+std::string Server::handleCgi()
+{
+  std::cout << "Handle Cgi !" << std::endl;
+  // Fork
+  // Execve
+  // Waitpid
+  return "";
+}
+
+std::string Server::handleAction(const std::string& ressource, Request& request, Location* location)
+{
+  std::string method = request.getMethod();
+  if (!method.compare("GET"))
+    return this->handleGet(ressource);
+  if (!method.compare("DELETE"))
+    return this->handleDelete(ressource, location);
+  if (!method.compare("POST"))
+    return this->handlePost(ressource, request.getBody(), location);
+  std::string err = ressource;
+  this->handleError("Method inconnue =(", err, location);
+  return this->handleGet(err);
+}
+
+std::string Server::handleGet(const std::string& path)
+{
+  std::ifstream ressource(path.c_str());
+  if (!ressource)
+    return "";
+  std::string line;
+  std::string content;
+  while (std::getline(ressource, line))
+  {
+    content.append(line);
+  }
+  ressource.close();
+  return content;
+}
+
+std::string Server::handleDelete(const std::string& path, Location* location)
+{
+  if (std::remove(path.c_str()) == -1)
+  {
+    std::string ressource = path;
+    this->handleError("Pb delete", ressource, location);
+    return this->handleGet(ressource);
+  }
+  return "";
+}
+
+std::string Server::handlePost(const std::string& path, const std::string body, Location* location)
+{
+  std::ofstream file(path.c_str());
+  if (!file || this->_response.getResponseCode().compare("200 OK"))
+  {
+    std::string ressource = path;
+    this->handleError("Pb post", ressource, location);
+    return this->handleGet(ressource);
+  }  
+  file << body;
+  file.close();
+  return "";
+}
+
+void  Server::handleError(std::string code, std::string& ressource, Location* location)
+{
+  std::cout << "Handle error : " << code << std::endl;
+  
+  this->_response.setResponseCode(code);
+
+  std::string error_default = "./error/error.html";
+
+  if (location && location->isset("error_page"))
+  {
+    std::string error_page = location->get("error_page");
+    if (access(error_page.c_str(), R_OK) == 0)
+    {
+      ressource = error_page;
+      return ;
+    }
+  }
+
+  if (access(this->_error_page.c_str(), R_OK) == 0)
+    ressource = this->_error_page;
+  else
+    ressource = error_default;
+  return ;
 }
 
 void  Server::send(int fd)

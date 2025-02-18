@@ -206,6 +206,8 @@ void Request::appendRawBody(std::string &fragment) {
     this->_status = E_REQUEST_COMPLETE;
   }
 
+  /*if (remainingLength > fragment.length())*/
+  /*  remainingLength = fragment.length();*/
   std::string str = fragment.substr(0, remainingLength);
   fragment.erase(0, remainingLength);
 
@@ -239,3 +241,24 @@ void Request::clean() {
   this->_isChucked = false;
   this->_status = E_REQUEST_HEADER_INCOMPLETE;
 }
+
+std::string Request::getPath() const 
+{
+  return this->_path;
+}
+
+std::string Request::getBody() const
+{
+  return this->_rawBody;
+}
+
+std::string Request::getMethod() const
+{
+  return this->_method;
+}
+
+std::string Request::getResponseCode() const
+{
+  return this->_code;
+}
+

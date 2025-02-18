@@ -153,8 +153,11 @@ void  Webserv::configureLocation(std::ifstream& file, Server* server, const std:
   std::string line;
   std::string key;
   
+
   if (!server->set(path, location))
     Parser::throwError("Try to rewrite location.", location);
+  
+  location->set("key", path);
   
   while (std::getline(file, line))
   {
@@ -181,8 +184,7 @@ void  Webserv::init()
   std::cout << "Init servers..." << std::endl;
   for (std::vector<Server*>::iterator server = this->_servers.begin(); server != this->_servers.end(); ++server)
   {
-    if (!((*server)->isset("listen")))
-      (*server)->set("listen", "80");
+    (*server)->setDefault();
     this->initServer(*server);
     std::cout << **server << std::endl;
   }
@@ -290,8 +292,8 @@ void  Webserv::run()
           this->throwError("fcntl failed");
         e.events = EPOLLIN;
         e.data.fd = client_fd;
-        Client* client = new Client(events[i].data.fd, client_fd);
         epoll_ctl(this->_epoll_fd, EPOLL_CTL_ADD, client_fd, &e);
+        Client* client = new Client(events[i].data.fd, client_fd);
         if (this->_clients[client_fd])
           delete this->_clients[client_fd];
         this->_clients[client_fd] = client;

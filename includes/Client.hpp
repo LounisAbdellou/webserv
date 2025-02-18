@@ -19,6 +19,7 @@ public:
   ~Client() {};
 
   int getServerFd() const;
+  int getClientFd() const;
   Request &getRequest();
 
   bool receive();

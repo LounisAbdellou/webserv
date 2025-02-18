@@ -42,8 +42,15 @@ private:
   Request(const Request &src);
   Request &operator=(const Request &src);
 
-  void setHost(const std::string &host);
+  int getContentLength() const;
+  RequestStatus getStatus() const;
+  std::string getPath() const;
+  std::string getMethod() const;
+  std::string  getResponseCode() const;
+
+  void set(const std::string &key, const std::string &value);
   void setContentLength(const std::string &contentLength);
+  void setHost(const std::string &host);
   void setIsChucked(const std::string &transferEncoding);
   bool setMethod(std::string &method);
   bool setPath(std::string &path);
