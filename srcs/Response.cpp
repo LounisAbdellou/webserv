@@ -1,7 +1,10 @@
 #include "Response.hpp"
 #include "Parser.hpp"
 
-Response::Response() { this->_responseCode = OK; }
+Response::Response() : _is_listing(false)
+{ 
+  this->_responseCode = OK; 
+}
 
 Response::Response(const Response &src) { *this = src; }
 
@@ -48,4 +51,12 @@ void Response::clean() {
   this->_header.clear();
   this->_body.clear();
   this->_attributes.clear();
+  this->_is_listing = false;
+}
+
+bool  Response::getIsListing() const { return this->_is_listing; }
+
+void  Response::setIsListing(bool value) 
+{
+  this->_is_listing = value;
 }

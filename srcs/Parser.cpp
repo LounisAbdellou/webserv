@@ -26,7 +26,7 @@ void  Parser::handleFile(std::ifstream& file)
   {
     if (std::cin.eof())
     {
-      Parser::throwError("Parse Error: Problem occurs while reading file");
+      Parser::throwError("Problem occurs while reading file");
     }
     if (line.find_first_not_of(" \n\r\t") > line.length())
     {
@@ -35,14 +35,14 @@ void  Parser::handleFile(std::ifstream& file)
     }
     if (line.find("webserv") < line.length() && Parser::handleBlock(line, "webserv"))
       break;
-    Parser::throwError("Parse Error: need a webserv block");
+    Parser::throwError("Must begin with a webserv block");
   }
 }
 
 bool  Parser::handleClosure(const std::string& line)
 {
   if (line.find_first_not_of("} \n\t\r") < line.length() || std::count(line.begin(), line.end(), '}') != 1)
-    Parser::throwError("Parse Error: Closure error in configuration file...");
+    Parser::throwError("Closure error in configuration file...");
   return true;
 }
 
@@ -55,7 +55,7 @@ bool Parser::handleBlock(const std::string& line, const std::string type)
     end += (line.find_first_of(" \n\r\t", end) - end);
   }
   if (line.find_first_not_of("{ \n\r\t", end) < line.length() || std::count(line.begin(), line.end(), '{') != 1 )
-    Parser::throwError("Parse Error: wrong block definition...");
+    Parser::throwError("Wrong block definition...");
   return true;
 }
 
@@ -74,12 +74,12 @@ std::string Parser::getValue(const std::string& key, const std::string& line)
 {
   std::size_t begin = line.find(key);
   if (begin >= line.length())
-    Parser::throwError("Parser Error: No value for instruction");
+    Parser::throwError("No value for instruction");
   begin += key.length();
   begin += (line.find_first_not_of(" \n\t\r", begin) - begin);
   std::size_t end = line.find_first_of(";", begin);
   if (end > line.length())
-    Parser::throwError("Parser Error: Value need to terminate by ';'");
+    Parser::throwError("Value must terminate by ';'");
   return line.substr(begin, end - begin);
 }
 
@@ -88,11 +88,11 @@ std::string Parser::getLocation(const std::string& line)
   std::string type = "location";
   std::size_t begin = line.find(type) + type.length();
   if (begin >= line.length())
-    Parser::throwError("Parser Error: No path for bloc location");
+    Parser::throwError("No path for bloc location");
   begin += (line.find_first_not_of(" \n\t\r", begin) - begin);
   std::size_t end = line.find_first_of("{ \n\t\r", begin);
   if (end > line.length())
-    Parser::throwError("Parser Error: location line need to terminate by '{'");
+    Parser::throwError("Location line must terminate by '{'");
   std::string location = line.substr(begin, end - begin);
   if (location.empty())
     Parser::throwError("No path for location bloc.");
@@ -181,7 +181,23 @@ std::string Parser::to_string(long long nbr) {
 		nbr /= 10;
 	}
 
-	return str;
+	return str.empty() ? "0" : str;
+}
+
+std::string Parser::getExtension(const std::string& path)
+{
+  std::size_t dot = path.find_last_of(".");
+  if (dot > path.length())
+    return "";
+  return path.substr(dot, path.length() - dot);
+}
+
+std::string Parser::getFolder(const std::string& path)
+{
+  std::size_t slash = path.find_last_of("/");
+  if (slash > path.length())
+    return path.substr(0);
+  return path.substr(0, slash);
 }
 
 void  Parser::throwError(std::string message, Location* location)
