@@ -1,18 +1,23 @@
-#ifndef __REQUEST__
-#define __REQUEST__
+#ifndef REQUEST_HPP
+#define REQUEST_HPP
 
-#include <string>
+#include "AHttpMessage.hpp"
 
-class Request {
-  public:
-    Request();
-    ~Request();
+class Request : public AHttpMessage {
+private:
+  std::string path;
+  std::string method;
+  std::string contentType;
 
-    void  clean();
-    
-  private:
-    Request(const Request& cpy);
-    Request& operator=(Request& cpy);
+public:
+  Request();
+  Request(const Request &src);
+  virtual ~Request() {};
+
+  Request &operator=(const Request &src);
+
+  void parseData();
+  void clean();
 };
 
-#endif
+#endif // !REQUEST_HPP
