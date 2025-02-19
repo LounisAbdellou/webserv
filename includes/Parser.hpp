@@ -6,6 +6,7 @@
 #include <string>
 #include <map>
 #include <vector>
+#include <sstream>
 #include <algorithm>
 #include <stdexcept>
 #include <stdlib.h>       // exit()
@@ -23,6 +24,9 @@ class Parser {
     static std::string							getLocation(const std::string& line);
 		static std::vector<std::string>	getRequestLine(const std::string &header, size_t &pos);
 		static std::vector<std::string>	getHeaderAttr(const std::string &header, size_t &pos);
+		static long long								strtoll(const std::string &str, int base);
+		static std::string							to_string(long long nbr);
+
 
     
     class		WebservParseException : public std::invalid_argument

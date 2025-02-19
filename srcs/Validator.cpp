@@ -116,16 +116,12 @@ bool  Validator::validateFile(std::string& value)
 
 bool  Validator::validateMethod(std::string& value)
 {
-	if (value != "GET" || value != "POST" || value != "DELETE")
-		return false;
-  return true;
+  return value == "GET" || value == "POST" || value == "DELETE";
 }
 
 bool  Validator::validateProtocol(std::string& value)
 {
-	if (value != "HTTP/1.1")
-		return false;
-  return true;
+  return value == "HTTP/1.1";
 }
 
 void  Validator::throwError(std::string message)

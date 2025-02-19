@@ -11,12 +11,12 @@ private:
   const int _clientFd;
   Request _request;
 
+  Client(const Client &src);
+  Client &operator=(const Client &src);
+
 public:
   Client(int serverFd, int clientFd);
-  Client(const Client &src);
   ~Client() {};
-
-  Client &operator=(const Client &src);
 
   int getServerFd() const;
   Request &getRequest();
