@@ -116,13 +116,13 @@ void  Server::handle(Request& request)
   std::cout << "body : '" <<  body << "'" << std::endl;
 
   // 3. Construire la response a partir du chemin + body 
-  this->_response.generate(body, request, ext);
+  this->_response.generate(body, request);
   request.clean();
 }
 
 void  Server::handlePath(std::string& ressource, Location* location, Request& request)
 {
-  if (request.getStatus() == REQUEST_BAD)
+  if (request.getStatus() == Request::E_REQUEST_BAD)
     return this->handleError(request.getResponseCode(), ressource, location);
   if (location)
   {
