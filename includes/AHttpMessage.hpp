@@ -5,18 +5,30 @@
 
 class AHttpMessage {
 protected:
-  std::string _rawData;
+  std::string _responseCode;
+  std::string _header;
+  std::string _body;
 
 public:
+  static const std::string OK;
+  static const std::string CREATED;
+  static const std::string BAD_REQUEST;
+  static const std::string NOT_FOUND;
+  static const std::string LENGTH_REQUIRED;
+  static const std::string HEADER_TOO_LARGE;
+
   AHttpMessage();
   AHttpMessage(const AHttpMessage &src);
   virtual ~AHttpMessage() {};
 
   AHttpMessage &operator=(const AHttpMessage &src);
 
-  std::string getRawData() const;
+  std::string getBody() const;
+  std::string getResponseCode() const;
 
-  virtual void appendRawData(std::string &fragment) = 0;
+  void setResponseCode(const std::string &responseCode);
+
+  virtual void clean() = 0;
 };
 
 #endif // !A_HTTP_MESSAGE_HPP

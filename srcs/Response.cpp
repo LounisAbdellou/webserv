@@ -1,25 +1,51 @@
 #include "Response.hpp"
+#include "Parser.hpp"
 
-Response::Response()
-{
+Response::Response() { this->_responseCode = OK; }
+
+Response::Response(const Response &src) { *this = src; }
+
+Response &Response::operator=(const Response &src) {
+  if (this != &src) {
+    this->_responseCode = src._responseCode;
+  }
+
+  return *this;
 }
 
-Response::Response(const Response& cpy)
-{
-  (void)cpy;
-}
+std::string Response::get() const {
+  std::string response = this->_header + "\r\n" + this->_body;
 
-Response& Response::operator=(Response& cpy)
-{
-  return cpy;
-}
-
-Response::~Response()
-{
-}
-
-std::string Response::get() const
-{
-  std::string response = "HTTP/1.1 200 OK\r\nDate: Mon, 10 Feb 2025 14:00:00 GMT\r\nServer: nginx/1.21.6\r\nContent-Type: text/html; charset=UTF-8\r\nContent-Length: 99\r\nConnection: keep-alive\r\n\r\n<!DOCTYPE html>\r\n<html>\r\n<head><title>Success</title></head>\r\n<body><h1>200 OK</h1></body>\r\n</html>";
   return response;
+}
+
+void Response::setAttribute(const std::string &key, const std::string &value) {
+  this->_attributes[key] = value;
+}
+
+void Response::generate(std::string &fragment, Request &request) {
+  std::map<std::string, std::string>::const_iterator it;
+
+  if (this->_responseCode == CREATED) {
+    this->setAttribute("Location",
+                       "http://" + request.getHost() + request.getPath());
+  }
+
+  this->setAttribute("Content-Length", Parser::to_string(fragment.size()));
+  this->setAttribute("Server", "Webserv");
+
+  this->_header.append("HTTP/1.1 " + this->_responseCode + "\r\n");
+
+  for (it = this->_attributes.begin(); it != this->_attributes.end(); it++) {
+    this->_header.append(it->first + ": " + it->second + "\r\n");
+  }
+
+  this->_body = fragment;
+}
+
+void Response::clean() {
+  this->_responseCode = OK;
+  this->_header.clear();
+  this->_body.clear();
+  this->_attributes.clear();
 }

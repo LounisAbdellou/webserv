@@ -4,42 +4,45 @@
 #include "AHttpMessage.hpp"
 #include <map>
 
-enum RequestStatus {
-  REQUEST_BAD = 1,
-  REQUEST_COMPLETE = 2,
-  REQUEST_INCOMPLETE = 3,
-  REQUEST_HEADER_INCOMPLETE = 4,
-};
-
 class Request : public AHttpMessage {
+public:
+  enum Status {
+    E_REQUEST_BAD = 1,
+    E_REQUEST_COMPLETE = 2,
+    E_REQUEST_INCOMPLETE = 3,
+    E_REQUEST_HEADER_INCOMPLETE = 4,
+  };
+
+  Request();
+  ~Request() {};
+
+  int getContentLength() const;
+  std::string getPath() const;
+  std::string getHost() const;
+  std::string getMethod() const;
+  Status getStatus() const;
+
+  void set(const std::string &key, const std::string &value);
+
+  void appendRawData(std::string &fragment);
+  void clean();
+
 private:
   std::string _path;
+  std::string _host;
   std::string _method;
   std::string _protocol;
-  std::string _rawBody;
-  std::string _rawHeader;
 
   bool _isChucked;
   int _contentLength;
-  RequestStatus _status;
+  Status _status;
 
   std::map<std::string, void (Request::*)(const std::string &)> _setters;
 
-  long long _strtoll(const std::string &str, int base) const;
-
-public:
-  Request();
   Request(const Request &src);
-  ~Request() {};
-
   Request &operator=(const Request &src);
 
-  int getContentLength() const;
-  RequestStatus getStatus() const;
-  std::string &getPath() const;
-  std::string &getMethod() const;
-
-  void set(const std::string &key, const std::string &value);
+  void setHost(const std::string &host);
   void setContentLength(const std::string &contentLength);
   void setIsChucked(const std::string &transferEncoding);
   bool setMethod(std::string &method);
@@ -48,12 +51,9 @@ public:
 
   void parseHeader();
   size_t parseRequestLine(const std::string &header);
-
-  void clean();
   void handleChunkedBody(std::string &fragment);
   void appendRawHeader(std::string &fragment);
   void appendRawBody(std::string &fragment);
-  void appendRawData(std::string &fragment);
 };
 
 #endif // !REQUEST_HPP

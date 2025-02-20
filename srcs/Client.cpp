@@ -13,10 +13,7 @@ Client::Client(const Client &src)
 }
 
 Client &Client::operator=(const Client &src) {
-  if (this != &src) {
-    this->_request = src._request;
-  }
-
+  (void)src;
   return *this;
 }
 
@@ -42,12 +39,12 @@ bool Client::receive() {
     }
 
     if (bytesRead < BUFFER_SIZE - 1 ||
-        this->_request.getStatus() == REQUEST_BAD) {
+        this->_request.getStatus() == Request::E_REQUEST_BAD) {
       break;
     }
   }
 
-  return this->_request.getStatus() <= REQUEST_COMPLETE;
+  return this->_request.getStatus() <= Request::E_REQUEST_COMPLETE;
 }
 
 bool Client::isClose() const {

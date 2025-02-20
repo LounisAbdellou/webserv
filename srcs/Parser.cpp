@@ -103,7 +103,7 @@ std::vector<std::string> Parser::getRequestLine(const std::string &header, size_
 	std::vector<std::string> requestLine;
 
 	while (requestLine.size() < 3) {
-		const char *separator = (requestLine.size() < 2) ? " " : "\r\n";
+		const std::string separator = (requestLine.size() < 2) ? " " : "\r\n";
 		size_t end = header.find(separator, begin);
 
 		if (end == std::string::npos) { 
@@ -111,6 +111,7 @@ std::vector<std::string> Parser::getRequestLine(const std::string &header, size_
 		}
 
 		requestLine.push_back(header.substr(begin, end - begin));
+		begin = end + separator.size();
 	}
 
 	return requestLine;
@@ -136,6 +137,51 @@ std::vector<std::string> Parser::getHeaderAttr(const std::string &header, size_t
 	begin = end + 2;
 
 	return attribute;
+}
+
+long long Parser::strtoll(const std::string &str, int base) {
+  long long result = -1;
+  std::istringstream iss(str);
+  std::string::const_iterator it = str.begin();
+
+  if (*it == '-') {
+    return result;
+  }
+
+  it++;
+
+  if (base == 10) {
+    for (; it != str.end(); it++) {
+      if (!std::isdigit(*it)) {
+        return result;
+      }
+    }
+
+    iss >> std::dec >> result;
+  } else if (base == 16) {
+    for (; it != str.end(); it++) {
+      if (!std::isdigit(*it) && *it < 65 && *it > 70 && *it < 97 && *it > 102) {
+        return result;
+      }
+    }
+
+    iss >> std::hex >> result;
+  }
+
+  return result;
+}
+
+std::string Parser::to_string(long long nbr) {
+	int tmp;
+	std::string str;
+
+	while (nbr) {
+		tmp = nbr % 10;
+		str.insert(str.begin(), tmp + 48);
+		nbr /= 10;
+	}
+
+	return str;
 }
 
 void  Parser::throwError(std::string message, Location* location)
