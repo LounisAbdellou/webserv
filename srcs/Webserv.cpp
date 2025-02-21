@@ -290,7 +290,7 @@ void  Webserv::run()
 				int flag = fcntl(client_fd, F_GETFL, 0);
         if (fcntl(client_fd, F_SETFL, flag | O_NONBLOCK) == -1)
           this->throwError("fcntl failed");
-        e.events = EPOLLIN | EPOLLET;
+        e.events = EPOLLIN;
         e.data.fd = client_fd;
         if (epoll_ctl(this->_epoll_fd, EPOLL_CTL_ADD, client_fd, &e) == -1)
           this->throwError("Epoll add failed");
@@ -307,7 +307,7 @@ void  Webserv::run()
         {
           if (client->receive())
           {
-            events[i].events = EPOLLOUT | EPOLLET;
+            events[i].events = EPOLLOUT;
             if (epoll_ctl(this->_epoll_fd, EPOLL_CTL_MOD, events[i].data.fd, &events[i]) == -1)
               this->throwError("Epoll mod failed");
             continue;
@@ -320,7 +320,7 @@ void  Webserv::run()
           server->handle(client->getRequest());
           if (server->send(events[i].data.fd))
           {
-            events[i].events = EPOLLIN | EPOLLET;
+            events[i].events = EPOLLIN;
             if (epoll_ctl(this->_epoll_fd, EPOLL_CTL_MOD, events[i].data.fd, &events[i]) == -1)
               this->throwError("Epoll mod failed");
           }

@@ -1,10 +1,7 @@
 #include "Response.hpp"
 #include "Parser.hpp"
 
-Response::Response() : _is_listing(false)
-{ 
-  this->_responseCode = OK; 
-}
+Response::Response() : _isListing(false) { this->_responseCode = OK; }
 
 Response::Response(const Response &src) { *this = src; }
 
@@ -26,7 +23,7 @@ void Response::setAttribute(const std::string &key, const std::string &value) {
   this->_attributes[key] = value;
 }
 
-void Response::generate(std::string &fragment, Request &request) {
+void Response::generate(const std::string &fragment, Request &request) {
   std::map<std::string, std::string>::const_iterator it;
 
   if (this->_responseCode == CREATED) {
@@ -51,12 +48,9 @@ void Response::clean() {
   this->_header.clear();
   this->_body.clear();
   this->_attributes.clear();
-  this->_is_listing = false;
+  this->_isListing = false;
 }
 
-bool  Response::getIsListing() const { return this->_is_listing; }
+bool Response::getIsListing() const { return this->_isListing; }
 
-void  Response::setIsListing(bool value) 
-{
-  this->_is_listing = value;
-}
+void Response::setIsListing(bool value) { this->_isListing = value; }

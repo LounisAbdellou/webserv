@@ -18,6 +18,8 @@ public:
   static const std::string NOT_ALLOWED;
   static const std::string LENGTH_REQUIRED;
   static const std::string HEADER_TOO_LARGE;
+  static const std::string INTERNAL_SERVER_ERROR;
+  static const std::string HTTP_VERSION;
 
   AHttpMessage();
   AHttpMessage(const AHttpMessage &src);

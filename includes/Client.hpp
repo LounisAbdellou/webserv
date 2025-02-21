@@ -10,7 +10,7 @@ private:
   const int _serverFd;
   const int _clientFd;
   Request _request;
-  bool    _is_close;
+  bool    _isClose;
 
   Client(const Client &src);
   Client &operator=(const Client &src);

@@ -1,12 +1,12 @@
 #include "Request.hpp"
 #include "AHttpMessage.hpp"
 #include "Parser.hpp"
-#include <iostream>
 #include <vector>
 
 Request::Request() : AHttpMessage() {
   this->_isChucked = false;
   this->_status = E_REQUEST_HEADER_INCOMPLETE;
+  this->_contentLength = 0;
   this->_setters["Host"] = &Request::setHost;
   this->_setters["Content-Length"] = &Request::setContentLength;
   this->_setters["Transfer-Encoding"] = &Request::setIsChucked;
@@ -46,6 +46,8 @@ void Request::set(const std::string &key, const std::string &value) {
   (this->*_setters[key])(value);
 }
 
+void Request::setStatus(Request::Status status) { this->_status = status; }
+
 void Request::setHost(const std::string &host) { this->_host = host; }
 
 void Request::setIsChucked(const std::string &transferEncoding) {
@@ -60,6 +62,7 @@ void Request::setContentLength(const std::string &contentLength) {
 
 bool Request::setMethod(std::string &method) {
   if (!Validator::validate("method", method)) {
+    this->_responseCode = BAD_REQUEST;
     return false;
   }
 
@@ -69,6 +72,7 @@ bool Request::setMethod(std::string &method) {
 
 bool Request::setPath(std::string &path) {
   if (!Validator::validate("path", path)) {
+    this->_responseCode = BAD_REQUEST;
     return false;
   }
 
@@ -78,6 +82,7 @@ bool Request::setPath(std::string &path) {
 
 bool Request::setProtocol(std::string &protocol) {
   if (!Validator::validate("protocol", protocol)) {
+    this->_responseCode = HTTP_VERSION;
     return false;
   }
 
@@ -90,6 +95,7 @@ void Request::parseHeader() {
 
   std::vector<std::string> requestLine =
       Parser::getRequestLine(this->_header, begin);
+
   if (requestLine.size() < 3) {
     this->_status = E_REQUEST_BAD;
     this->_responseCode = BAD_REQUEST;
@@ -99,13 +105,13 @@ void Request::parseHeader() {
   if (!this->setMethod(requestLine[0]) || !this->setPath(requestLine[1]) ||
       !this->setProtocol(requestLine[2])) {
     this->_status = E_REQUEST_BAD;
-    this->_responseCode = BAD_REQUEST;
     return;
   }
 
   while (begin < this->_header.size()) {
     std::vector<std::string> attribute =
         Parser::getHeaderAttr(this->_header, begin);
+
     if (attribute.size() < 2) {
       this->_status = E_REQUEST_BAD;
       this->_responseCode = BAD_REQUEST;
@@ -115,7 +121,7 @@ void Request::parseHeader() {
     this->set(attribute[0], attribute[1]);
   }
 
-  if (this->_contentLength < 1 && !this->_isChucked) {
+  if (!this->_contentLength && !this->_isChucked) {
     this->_status = E_REQUEST_BAD;
     this->_responseCode = LENGTH_REQUIRED;
   }
@@ -152,16 +158,11 @@ void Request::handleChunkedBody(std::string &fragment) {
   std::string str;
   size_t begin = 0;
   size_t end = 0;
-  static bool isContent;
   static long long chunkSize;
   long long maxSize = fragment.size();
 
-  if (!chunkSize) {
-    isContent = false;
-  }
-
   while (begin < fragment.size()) {
-    if (!isContent) {
+    if (!chunkSize) {
       end = fragment.find("\r\n", begin);
       if (end == std::string::npos) {
         this->_status = E_REQUEST_BAD;
@@ -171,16 +172,17 @@ void Request::handleChunkedBody(std::string &fragment) {
 
       chunkSize = Parser::strtoll(fragment.substr(begin, end - begin), 16);
 
-      if (chunkSize < 1) {
+      if (chunkSize == 0 && fragment.substr(end, 4) == "\r\n\r\n") {
         this->_status = E_REQUEST_COMPLETE;
-        std::cout << "ALALALLAL Mazel Tov 1 !!" << std::endl;
-        break;
+        return;
+      } else if (chunkSize < 1) {
+        this->_status = E_REQUEST_BAD;
+        this->_responseCode = BAD_REQUEST;
+        return;
       }
 
-      fragment.erase(begin, end + 2);
       maxSize -= (end - begin) + 2;
       begin = end + 2;
-      isContent = true;
     }
 
     if (chunkSize < maxSize) {
@@ -188,10 +190,10 @@ void Request::handleChunkedBody(std::string &fragment) {
     }
 
     str = fragment.substr(begin, maxSize);
-    fragment.erase(begin, maxSize);
     this->_body.append(str);
 
     chunkSize -= maxSize;
+    begin += maxSize + 2;
   }
 }
 
@@ -206,8 +208,6 @@ void Request::appendRawBody(std::string &fragment) {
     this->_status = E_REQUEST_COMPLETE;
   }
 
-  /*if (remainingLength > fragment.length())*/
-  /*  remainingLength = fragment.length();*/
   std::string str = fragment.substr(0, remainingLength);
   fragment.erase(0, remainingLength);
 
@@ -223,7 +223,8 @@ void Request::appendRawData(std::string &fragment) {
     this->appendRawBody(fragment);
   }
 
-  if (this->_status == E_REQUEST_COMPLETE && fragment.size() > 0) {
+  if (!this->_isChucked && this->_status == E_REQUEST_COMPLETE &&
+      fragment.size() > 0) {
     this->_status = E_REQUEST_BAD;
     this->_responseCode = BAD_REQUEST;
   }

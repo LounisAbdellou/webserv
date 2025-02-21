@@ -17,8 +17,12 @@ const std::string AHttpMessage::LENGTH_REQUIRED = "411 Length Required";
 const std::string AHttpMessage::HEADER_TOO_LARGE =
     "431 Request Header Fields Too Large";
 
-AHttpMessage::AHttpMessage()
-    : _responseCode(""), _header(""), _body("") {}
+const std::string AHttpMessage::INTERNAL_SERVER_ERROR =
+    "500 Internal Server Error";
+
+const std::string AHttpMessage::HTTP_VERSION = "505 HTTP Version Not Supported";
+
+AHttpMessage::AHttpMessage() : _responseCode(""), _header(""), _body("") {}
 
 AHttpMessage::AHttpMessage(const AHttpMessage &src) { *this = src; }
 
