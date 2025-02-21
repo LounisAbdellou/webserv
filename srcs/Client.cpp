@@ -2,6 +2,7 @@
 #include "Request.hpp"
 #include <iostream>
 #include <sys/socket.h>
+#include <sys/stat.h>
 #include <unistd.h>
 
 Client::Client(int serverFd, int clientFd)
@@ -22,27 +23,26 @@ int Client::getServerFd() const { return _serverFd; }
 Request &Client::getRequest() { return this->_request; }
 
 bool Client::receive() {
-  char buffer[BUFFER_SIZE];
+  char *buffer;
+  struct stat statBuffer;
 
-  while (true) {
-    ssize_t bytesRead =
-        recv(this->_clientFd, buffer, BUFFER_SIZE - 1, MSG_DONTWAIT);
+  fstat(this->_clientFd, &statBuffer);
+  buffer = new char[statBuffer.st_size + 1];
 
-    buffer[bytesRead] = '\0';
+  ssize_t bytesRead =
+      recv(this->_clientFd, buffer, statBuffer.st_size, MSG_DONTWAIT);
 
-    if (bytesRead > 0) {
-      std::string fragment = buffer;
+  buffer[bytesRead] = '\0';
 
-      // std::cout << fragment << "FRAGMENT" << std::endl;
+  if (bytesRead > 0) {
+    std::string fragment = buffer;
 
-      this->_request.appendRawData(fragment);
-    }
+    std::cout << fragment << "FRAGMENT" << std::endl;
 
-    if (bytesRead < BUFFER_SIZE - 1 ||
-        this->_request.getStatus() == Request::E_REQUEST_BAD) {
-      break;
-    }
+    this->_request.appendRawData(fragment);
   }
+
+  delete buffer;
 
   return this->_request.getStatus() <= Request::E_REQUEST_COMPLETE;
 }

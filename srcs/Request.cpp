@@ -1,7 +1,6 @@
 #include "Request.hpp"
 #include "AHttpMessage.hpp"
 #include "Parser.hpp"
-#include <iostream>
 #include <vector>
 
 Request::Request() : AHttpMessage() {
