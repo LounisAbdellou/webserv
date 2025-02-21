@@ -181,7 +181,7 @@ std::string Parser::to_string(long long nbr) {
 		nbr /= 10;
 	}
 
-	return str;
+	return str.empty() ? "0" : str;
 }
 
 std::string Parser::getExtension(const std::string& path)
@@ -190,6 +190,14 @@ std::string Parser::getExtension(const std::string& path)
   if (dot > path.length())
     return "";
   return path.substr(dot, path.length() - dot);
+}
+
+std::string Parser::getFolder(const std::string& path)
+{
+  std::size_t slash = path.find_last_of("/");
+  if (slash > path.length())
+    return path.substr(0);
+  return path.substr(0, slash);
 }
 
 void  Parser::throwError(std::string message, Location* location)

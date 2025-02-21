@@ -9,6 +9,7 @@
 #include "Validator.hpp"
 #include "Request.hpp"
 #include "Response.hpp"
+#include "AHttpMessage.hpp"
 #include "Parser.hpp"
 #include <sys/socket.h>   // socket(), bind(), listen(), accept(), send(), recv()
 #include <sys/stat.h>
@@ -22,7 +23,7 @@ class Server {
 
     void                                      handle(Request& request);
     void                                      setDefault();
-    void                                      send(int fd);
+    bool                                      send(int fd);
     bool                                      has(const std::string key) const;
     void                                      set(const std::string key, std::string value);
     bool                                      set(const std::string key, Location* location);
@@ -68,9 +69,14 @@ class Server {
     std::string                                             handleDelete(const std::string& path, Location* location);
     std::string                                             handlePost(const std::string& path, const std::string body, Location* location);
     std::string                                             handleAction(const std::string& ressource, Request& request, Location* location);
-    void                                                    handlePath(std::string& ressource, Location* location, Request& request);
     void                                                    handleFile(std::string& ressource, Location* location, Request& request);
     void                                                    handleError(std::string code, std::string& ressource, Location* location);
+
+    void                                                    handlePath(std::string& ressource, Location* location, Request& request);
+    bool                                                    checkPath(std::string ressource);
+    bool                                                    checkPath(std::string& ressource, Location* location = NULL);
+    void                                                    addPathRoot(std::string& ressource, Location* location);
+    void                                                    addPathIndex(std::string& ressource, Location* location);
 };
 
 std::ostream&  operator<<(std::ostream& cout, const Server& server);

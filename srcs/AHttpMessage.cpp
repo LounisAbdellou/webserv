@@ -8,6 +8,10 @@ const std::string AHttpMessage::BAD_REQUEST = "400 Bad Request";
 
 const std::string AHttpMessage::NOT_FOUND = "404 Not Found";
 
+const std::string AHttpMessage::FORBIDDEN = "403 Forbidden";
+
+const std::string AHttpMessage::NOT_ALLOWED = "405 Method Not Allowed";
+
 const std::string AHttpMessage::LENGTH_REQUIRED = "411 Length Required";
 
 const std::string AHttpMessage::HEADER_TOO_LARGE =

@@ -124,6 +124,51 @@ void  Server::handlePath(std::string& ressource, Location* location, Request& re
 {
   if (request.getStatus() == Request::E_REQUEST_BAD)
     return this->handleError(request.getResponseCode(), ressource, location);
+  
+  this->addPathRoot(ressource, location);
+  
+  bool exist = access(ressource.c_str(), F_OK) == 0;
+
+  if (exist && !this->checkPath(ressource, location))
+    return this->handleError(AHttpMessage::NOT_FOUND, ressource, location);
+  
+  if (!exist && (request.getMethod().compare("POST") || !this->checkPath(Parser::getFolder(ressource))))
+    return this->handleError(AHttpMessage::NOT_FOUND, ressource, location);
+
+  if (!request.getMethod().compare("GET") && access(ressource.c_str(), R_OK) == -1)
+    return this->handleError(AHttpMessage::FORBIDDEN, ressource, location);
+
+  if (!request.getMethod().compare("POST") && access(Parser::getFolder(ressource).c_str(), W_OK) == -1)
+    return this->handleError(AHttpMessage::FORBIDDEN, ressource, location);
+  
+  if (!request.getMethod().compare("DELETE") && access(ressource.c_str(), X_OK) == -1)
+    return this->handleError(AHttpMessage::FORBIDDEN, ressource, location);
+}
+
+bool  Server::checkPath(std::string ressource)
+{
+  struct stat sb;
+  if (stat(ressource.c_str(), &sb) == -1) 
+    return false;
+  if (!S_ISDIR(sb.st_mode) || access(ressource.c_str(), X_OK) == -1)
+    return false;
+  return true;
+}
+
+bool  Server::checkPath(std::string& ressource, Location* location)
+{
+  struct stat sb;
+  if (stat(ressource.c_str(), &sb) == -1) 
+    return false;
+  if (S_ISDIR(sb.st_mode) && access(ressource.c_str(), X_OK) == 0)
+    this->addPathIndex(ressource, location);
+  if (access(ressource.c_str(), F_OK) == -1)
+    return false;
+  return true;
+}
+
+void  Server::addPathRoot(std::string& ressource, Location* location)
+{
   if (location)
   {
     std::string pattern = location->get("key");
@@ -137,44 +182,19 @@ void  Server::handlePath(std::string& ressource, Location* location, Request& re
   
   if (ressource[0] != '/')
     ressource.insert(0, "/");  
-  ressource.insert(0, ".");
   
-  this->handleFile(ressource, location, request);
+  ressource.insert(0, ".");
 }
 
-void  Server::handleFile(std::string& ressource, Location* location, Request& request)
+void  Server::addPathIndex(std::string& ressource, Location* location)
 {
-  (void)request;
-  /*if (!method.compare("POST"))*/
-  /*  return this->handleFilePost(ressource, location);*/
-  if (access(ressource.c_str(), F_OK) == 0)
-  {
-    struct stat sb;
-    if (stat(ressource.c_str(), &sb) == -1) 
-      return this->handleError("404 Not Found 1", ressource, location);
-    if (S_ISDIR(sb.st_mode) && access(ressource.c_str(), X_OK) == 0)
-    {
-      if (ressource[ressource.length() - 1] != '/')
-        ressource.append("/");
-      if (location && location->isset("index")) 
-        ressource.append(location->get("index"));
-      else
-        ressource.append(this->_index);
-    }
-    if (access(ressource.c_str(), F_OK) == -1)
-      return this->handleError("404 Not Found 2", ressource, location);
-  }
+  if (ressource[ressource.length() - 1] != '/')
+    ressource.append("/");
+  if (location && location->isset("index")) 
+    ressource.append(location->get("index"));
   else
-    return this->handleError("404 Not Found 3", ressource, location);
-
-  if (access(ressource.c_str(), R_OK) == -1)
-    return this->handleError("403 Unauthorized", ressource, location);
+    ressource.append(this->_index);
 }
-
-/*void  Server::handleFilePost(std::string& ressource, Location* location)*/
-/*{*/
-/**/
-/*}*/
 
 Location* Server::getLocation(const std::string& ressource)
 {
@@ -198,6 +218,7 @@ std::string Server::handleCgi()
 std::string Server::handleAction(const std::string& ressource, Request& request, Location* location)
 {
   std::string method = request.getMethod();
+  // Verifier si la method est alloue 
   if (!method.compare("GET"))
     return this->handleGet(ressource);
   if (!method.compare("DELETE"))
@@ -205,7 +226,7 @@ std::string Server::handleAction(const std::string& ressource, Request& request,
   if (!method.compare("POST"))
     return this->handlePost(ressource, request.getBody(), location);
   std::string err = ressource;
-  this->handleError("Method inconnue =(", err, location);
+  this->handleError(AHttpMessage::NOT_ALLOWED, err, location);
   return this->handleGet(err);
 }
 
@@ -226,10 +247,10 @@ std::string Server::handleGet(const std::string& path)
 
 std::string Server::handleDelete(const std::string& path, Location* location)
 {
-  if (std::remove(path.c_str()) == -1)
+  if (this->_response.getResponseCode().compare("200 OK") || std::remove(path.c_str()) == -1)
   {
     std::string ressource = path;
-    this->handleError("Pb delete", ressource, location);
+    this->handleError(this->_response.getResponseCode(), ressource, location);
     return this->handleGet(ressource);
   }
   return "";
@@ -241,7 +262,7 @@ std::string Server::handlePost(const std::string& path, const std::string body, 
   if (!file || this->_response.getResponseCode().compare("200 OK"))
   {
     std::string ressource = path;
-    this->handleError("Pb post", ressource, location);
+    this->handleError(this->_response.getResponseCode(), ressource, location);
     return this->handleGet(ressource);
   }  
   file << body;
@@ -274,12 +295,14 @@ void  Server::handleError(std::string code, std::string& ressource, Location* lo
   return ;
 }
 
-void  Server::send(int fd)
+bool  Server::send(int fd)
 {
   std::string response = this->_response.get();
   /*std::size_t bwrite = ::send(fd, response.c_str(), response.length(), MSG_NOSIGNAL);*/
   ::send(fd, response.c_str(), response.length(), MSG_NOSIGNAL);
   /*return bwrite == response.length();*/
+  this->_response.clean();
+  return true;
 }
 
 std::vector<std::string>::const_iterator  Server::iterator(int pos) const
