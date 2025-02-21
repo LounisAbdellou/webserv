@@ -33,7 +33,7 @@ bool Client::receive() {
     if (bytesRead > 0) {
       std::string fragment = buffer;
 
-      std::cout << fragment << "FRAGMENT" << std::endl;
+      // std::cout << fragment << "FRAGMENT" << std::endl;
 
       this->_request.appendRawData(fragment);
     }

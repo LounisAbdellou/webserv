@@ -140,12 +140,12 @@ std::vector<std::string> Parser::getHeaderAttr(const std::string &header, size_t
 }
 
 long long Parser::strtoll(const std::string &str, int base) {
-  long long result = -1;
+  long long result = 0;
   std::istringstream iss(str);
   std::string::const_iterator it = str.begin();
 
   if (*it == '-') {
-    return result;
+    return -1;
   }
 
   it++;
@@ -153,7 +153,7 @@ long long Parser::strtoll(const std::string &str, int base) {
   if (base == 10) {
     for (; it != str.end(); it++) {
       if (!std::isdigit(*it)) {
-        return result;
+        return -1;
       }
     }
 
@@ -161,7 +161,7 @@ long long Parser::strtoll(const std::string &str, int base) {
   } else if (base == 16) {
     for (; it != str.end(); it++) {
       if (!std::isdigit(*it) && *it < 65 && *it > 70 && *it < 97 && *it > 102) {
-        return result;
+        return -1;
       }
     }
 

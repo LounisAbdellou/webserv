@@ -7,6 +7,7 @@
 Request::Request() : AHttpMessage() {
   this->_isChucked = false;
   this->_status = E_REQUEST_HEADER_INCOMPLETE;
+  this->_contentLength = 0;
   this->_setters["Host"] = &Request::setHost;
   this->_setters["Content-Length"] = &Request::setContentLength;
   this->_setters["Transfer-Encoding"] = &Request::setIsChucked;
@@ -90,6 +91,7 @@ void Request::parseHeader() {
 
   std::vector<std::string> requestLine =
       Parser::getRequestLine(this->_header, begin);
+
   if (requestLine.size() < 3) {
     this->_status = E_REQUEST_BAD;
     this->_responseCode = BAD_REQUEST;
@@ -106,6 +108,7 @@ void Request::parseHeader() {
   while (begin < this->_header.size()) {
     std::vector<std::string> attribute =
         Parser::getHeaderAttr(this->_header, begin);
+
     if (attribute.size() < 2) {
       this->_status = E_REQUEST_BAD;
       this->_responseCode = BAD_REQUEST;
@@ -115,7 +118,7 @@ void Request::parseHeader() {
     this->set(attribute[0], attribute[1]);
   }
 
-  if (this->_contentLength < 1 && !this->_isChucked) {
+  if (!this->_contentLength && !this->_isChucked) {
     this->_status = E_REQUEST_BAD;
     this->_responseCode = LENGTH_REQUIRED;
   }
@@ -152,16 +155,11 @@ void Request::handleChunkedBody(std::string &fragment) {
   std::string str;
   size_t begin = 0;
   size_t end = 0;
-  static bool isContent;
   static long long chunkSize;
   long long maxSize = fragment.size();
 
-  if (!chunkSize) {
-    isContent = false;
-  }
-
   while (begin < fragment.size()) {
-    if (!isContent) {
+    if (!chunkSize) {
       end = fragment.find("\r\n", begin);
       if (end == std::string::npos) {
         this->_status = E_REQUEST_BAD;
@@ -171,16 +169,17 @@ void Request::handleChunkedBody(std::string &fragment) {
 
       chunkSize = Parser::strtoll(fragment.substr(begin, end - begin), 16);
 
-      if (chunkSize < 1) {
+      if (chunkSize == 0 && fragment.substr(end, 4) == "\r\n\r\n") {
         this->_status = E_REQUEST_COMPLETE;
-        std::cout << "ALALALLAL Mazel Tov 1 !!" << std::endl;
-        break;
+        return;
+      } else if (chunkSize < 1) {
+        this->_status = E_REQUEST_BAD;
+        this->_responseCode = BAD_REQUEST;
+        return;
       }
 
-      fragment.erase(begin, end + 2);
       maxSize -= (end - begin) + 2;
       begin = end + 2;
-      isContent = true;
     }
 
     if (chunkSize < maxSize) {
@@ -188,10 +187,10 @@ void Request::handleChunkedBody(std::string &fragment) {
     }
 
     str = fragment.substr(begin, maxSize);
-    fragment.erase(begin, maxSize);
     this->_body.append(str);
 
     chunkSize -= maxSize;
+    begin += maxSize + 2;
   }
 }
 
@@ -221,7 +220,8 @@ void Request::appendRawData(std::string &fragment) {
     this->appendRawBody(fragment);
   }
 
-  if (this->_status == E_REQUEST_COMPLETE && fragment.size() > 0) {
+  if (!this->_isChucked && this->_status == E_REQUEST_COMPLETE &&
+      fragment.size() > 0) {
     this->_status = E_REQUEST_BAD;
     this->_responseCode = BAD_REQUEST;
   }

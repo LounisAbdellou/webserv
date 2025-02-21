@@ -31,7 +31,10 @@ void Response::generate(std::string &fragment, Request &request) {
                        "http://" + request.getHost() + request.getPath());
   }
 
-  this->setAttribute("Content-Length", Parser::to_string(fragment.size()));
+  if (fragment.size() > 0) {
+    this->setAttribute("Content-Length", Parser::to_string(fragment.size()));
+  }
+
   this->setAttribute("Server", "Webserv");
 
   this->_header.append("HTTP/1.1 " + this->_responseCode + "\r\n");
