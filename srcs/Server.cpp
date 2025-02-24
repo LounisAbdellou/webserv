@@ -280,8 +280,26 @@ std::string Server::handlePost(const std::string& path, const std::string body, 
 
 std::string  Server::handleListing(const std::string& path)
 {
-  std::cout << path << std::endl;
-  return "OKAYY le listing est good";
+	Entry entry;
+	std::vector<struct Entry> entries;
+	DIR *dir = opendir(path.c_str());
+	struct dirent *dir_entry = readdir(dir);;
+
+	while(dir_entry != NULL) {
+		dir_entry = readdir(dir);
+
+		if (!dir_entry || dir_entry->d_name[0] == '.')
+			continue ;
+
+		entry.name = dir_entry->d_name;
+		entry.isDir = dir_entry->d_type == DT_DIR;
+
+		entries.push_back(entry);
+	}
+
+	closedir(dir);
+
+  return Parser::getListingHtml(entries, path);
 }
 
 void  Server::handleError(std::string code, std::string& ressource, Location* location)

@@ -99,6 +99,45 @@ std::string Parser::getLocation(const std::string& line)
   return location;
 }
 
+std::string Parser::getEntryHtmlTag(struct Entry entry, std::string &path) {
+	std::string htmlTag = "<tr><td>";
+	
+	if (path[path.size() - 1] != '/') {
+		path.append("/");
+	} 
+
+	if (entry.isDir)
+		htmlTag.append("&#128193 ");
+	else
+		htmlTag.append("&#128196 ");
+
+	htmlTag.append("<a href=\"" + path + entry.name  + "\">" + entry.name + "</a>");
+	htmlTag.append("</td></tr>");
+
+	return htmlTag;
+}
+
+std::string	Parser::getListingHtml(const std::vector<struct Entry> &entries, const std::string &path) {
+	std::string bPath = path.substr(9, path.size() - 9);
+
+	std::vector<struct Entry>::const_reverse_iterator it;
+	std::string listingHtml = "<html><head><title>Index of" + bPath + "</title>\
+														</head><body><h1>Index of " + bPath + "</h1>\
+														<table><thead><tr><th></th></tr></thead><tbody>";
+
+	if (entries.empty()) {
+		listingHtml.append("Folder Empty :(");
+	} else {
+		for (it = entries.rbegin(); it != entries.rend(); it++) {
+			listingHtml.append(Parser::getEntryHtmlTag(*it, bPath));
+		}
+	}
+
+	listingHtml.append("</tbody></table></body></html>");
+
+	return listingHtml;
+}
+
 std::vector<std::string> Parser::getRequestLine(const std::string &header, size_t &begin) {
 	std::vector<std::string> requestLine;
 

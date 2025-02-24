@@ -9,6 +9,10 @@
 #include <sstream>
 #include <algorithm>
 #include <stdexcept>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
+#include <dirent.h>
 #include <stdlib.h>       // exit()
 #include "Server.hpp"
 #include "Location.hpp"
@@ -24,6 +28,8 @@ class Parser {
     static std::string							getLocation(const std::string& line);
     static std::string							getExtension(const std::string& path);
     static std::string							getFolder(const std::string& path);
+		static std::string							getEntryHtmlTag(struct Entry entry, std::string &path);
+    static std::string							getListingHtml(const std::vector<struct Entry> &dirEntries, const std::string &path);
 		static std::vector<std::string>	getRequestLine(const std::string &header, size_t &pos);
 		static std::vector<std::string>	getHeaderAttr(const std::string &header, size_t &pos);
 		static long long								strtoll(const std::string &str, int base);
@@ -42,6 +48,7 @@ class Parser {
     Parser(const Parser& cpy);
     const Parser& operator=(const Parser& cpy);
     ~Parser();
+
 };
 
 #endif
