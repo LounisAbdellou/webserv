@@ -5,7 +5,7 @@
 #include <unistd.h>
 
 Client::Client(int serverFd, int clientFd)
-    : _serverFd(serverFd), _clientFd(clientFd) {}
+    : _serverFd(serverFd), _clientFd(clientFd), _isClose(false) {}
 
 Client::Client(const Client &src)
     : _serverFd(src._serverFd), _clientFd(src._clientFd) {
@@ -26,34 +26,32 @@ Request &Client::getRequest() { return this->_request; }
 bool Client::receive() {
   char buffer[BUFFER_SIZE];
 
-  while (true) {
-    ssize_t bytesRead =
-        recv(this->_clientFd, buffer, BUFFER_SIZE - 1, MSG_DONTWAIT);
+  ssize_t bytesRead =
+      recv(this->_clientFd, buffer, BUFFER_SIZE - 1, MSG_DONTWAIT);
+  if (bytesRead == -1) {
+    this->_request.setStatus(Request::E_REQUEST_BAD);
+    this->_request.setResponseCode(AHttpMessage::INTERNAL_SERVER_ERROR);
+    return true;
+  }
 
-    buffer[bytesRead] = '\0';
+  buffer[bytesRead] = '\0';
 
-    if (bytesRead > 0) {
-      std::string fragment = buffer;
+  if (bytesRead > 0) {
+    std::string fragment = buffer;
 
-      std::cout << fragment << "FRAGMENT" << std::endl;
+    std::cout << fragment << "FRAGMENT" << std::endl;
 
-      this->_request.appendRawData(fragment);
-    }
+    this->_request.appendRawData(fragment);
+  }
 
-    if (bytesRead < BUFFER_SIZE - 1 ||
-        this->_request.getStatus() == Request::E_REQUEST_BAD) {
-      break;
-    }
+  if (bytesRead < BUFFER_SIZE - 1 &&
+      this->_request.getStatus() > Request::E_REQUEST_COMPLETE) {
+    this->_request.setStatus(Request::E_REQUEST_BAD);
   }
 
   return this->_request.getStatus() <= Request::E_REQUEST_COMPLETE;
 }
 
-bool Client::isClose() const {
-  return this->_is_close;
-}
+bool Client::isClose() const { return this->_isClose; }
 
-void  Client::setIsClose(bool value)
-{
-  this->_is_close = value;
-}
+void Client::setIsClose(bool value) { this->_isClose = value; }

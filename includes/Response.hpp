@@ -8,7 +8,7 @@
 class Response : public AHttpMessage {
 private:
   std::map<std::string, std::string>  _attributes;
-  bool                         _is_listing;
+  bool                         _isListing;
 
 public:
   Response();
@@ -20,7 +20,7 @@ public:
   void setAttribute(const std::string &key, const std::string &value);
 
   std::string get() const;
-  void generate(std::string &fragment, Request &request);
+  void generate(const std::string &fragment, Request &request);
   void clean();
 
   bool  getIsListing() const;

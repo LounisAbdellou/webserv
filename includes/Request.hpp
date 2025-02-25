@@ -23,6 +23,7 @@ public:
   Status getStatus() const;
 
   void set(const std::string &key, const std::string &value);
+  void setStatus(Request::Status status);
 
   void appendRawData(std::string &fragment);
   void clean();
