@@ -24,6 +24,8 @@
 #include <stdlib.h>
 
 
+#define BUFFER_SIZE 4096
+
 struct Entry {
 	std::string name;
 	bool isDir;
@@ -34,8 +36,8 @@ class Server {
     Server();
     ~Server();
 
+    int	                                      send(int fd);
     void                                      handle(Request& request);
-    bool                                      send(int fd);
     bool                                      has(const std::string key) const;
     void                                      set(const std::string key, std::string value);
     bool                                      set(const std::string key, Location* location);
@@ -77,6 +79,7 @@ class Server {
     std::string                                             getAllowListing() const;
     std::string                                             getRedirect() const;
     std::string                                             getErrorPage() const;
+    std::string                                             getResponse() const;
     Location*                                               getLocation(const std::string& ressource);
 
     std::string                                             handleGet(const std::string& path, Location* location);
@@ -89,10 +92,8 @@ class Server {
     void                                                    handleError(std::string code, std::string& ressource, Location* location);
     
     std::string                                             handleCgi(std::string& ressource, Request& request, Location* location, const std::string& ext);
-    char**                                                  constructArgsCgi(const std::string& ressource, const std::string& cgi_path);
     void                                                    setEnvCgi(const std::string& ressource, Request& request, bool is_php);
-    std::string                                             executeCgi(int fds[2][2], const char* cgi_path, char** cgi_args);
-    void                                                    deleteTabCgi(char** cgi_args);
+    std::string                                             executeCgi(int fds[2][2], const std::string& cgi_path, const std::string& ressource);
     std::string                                             extractResponseCgi(int fd);
 
     void                                                    handlePath(std::string& ressource, Request& request, Location* location);

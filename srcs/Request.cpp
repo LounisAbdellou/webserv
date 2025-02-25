@@ -3,15 +3,15 @@
 #include "Parser.hpp"
 #include <vector>
 
-Request::Request() : AHttpMessage() {
-  this->_path = "";
-  this->_host = "";
-  this->_method = "";
-  this->_query = "";
+Request::Request(int clientFd) : AHttpMessage(), _clientFd(clientFd) {
+  this->_isBinary = true;
   this->_isChucked = false;
   this->_status = E_REQUEST_HEADER_INCOMPLETE;
+  this->_chunkSize = 0;
   this->_contentLength = 0;
   this->_setters["Host"] = &Request::setHost;
+  this->_setters["User-Agent"] = &Request::setUserAgent;
+  this->_setters["Content-Type"] = &Request::setContentType;
   this->_setters["Content-Length"] = &Request::setContentLength;
   this->_setters["Transfer-Encoding"] = &Request::setIsChucked;
 }
@@ -32,17 +32,19 @@ Request &Request::operator=(const Request &src) {
   return *this;
 }
 
-int Request::getContentLength() const { return this->_contentLength; }
+bool Request::getIsBinary() const { return this->_isBinary; }
 
-std::string Request::getContentLen() const { return ""; }
+std::string Request::getContentLength() const {
+  return Parser::to_string(this->_contentLength);
+}
 
-std::string Request::getContentType() const { return ""; }
+std::string Request::getContentType() const { return this->_contentType; }
 
 std::string Request::getPath() const { return this->_path; }
 
 std::string Request::getHost() const { return this->_host; }
 
-std::string Request::getMethod() const { return "GET"; }
+std::string Request::getMethod() const { return this->_method; }
 
 std::string Request::getQuery() const { return this->_query; }
 
@@ -72,6 +74,22 @@ void Request::setIsChucked(const std::string &transferEncoding) {
   }
 }
 
+void Request::setUserAgent(const std::string &userAgent) {
+  this->_userAgent = userAgent;
+}
+
+void Request::setContentType(const std::string &contentType) {
+  this->_contentType = contentType;
+
+  if (contentType == "application/json" || contentType == "text/html" ||
+      contentType == "text/plain") {
+    this->_isBinary = false;
+    return;
+  }
+
+  this->_isBinary = true;
+}
+
 void Request::setContentLength(const std::string &contentLength) {
   this->_contentLength = Parser::strtoll(contentLength, 10);
 }
@@ -90,6 +108,12 @@ bool Request::setPath(std::string &path) {
   if (!Validator::validate("path", path)) {
     this->_responseCode = BAD_REQUEST;
     return false;
+  }
+
+  size_t pos = path.find_first_of('?');
+  if (pos != std::string::npos) {
+    this->_query = path.substr(pos, path.size() - pos);
+    path.erase(pos, path.size() - pos);
   }
 
   this->_path = path;
@@ -170,52 +194,74 @@ void Request::appendRawHeader(std::string &fragment) {
   this->parseHeader();
 }
 
-void Request::handleChunkedBody(std::string &fragment) {
-  std::string str;
-  size_t begin = 0;
-  size_t end = 0;
-  static long long chunkSize;
-  long long maxSize = fragment.size();
+void printTest(const std::string &fragment, std::string type) {
+  std::cout << "///////////" << type << "/////////////" << std::endl;
+  std::string::const_iterator it;
+  for (it = fragment.begin(); it != fragment.end(); it++) {
+    // if (isprint(*it)) {
+    std::cout << *it;
+    // }
+    if (it + 1 == fragment.end()) {
+      std::cout << std::endl;
+    }
+  }
+  std::cout << "/////////////" << type << "END////////////////" << std::endl;
+}
 
-  while (begin < fragment.size()) {
-    if (!chunkSize) {
-      end = fragment.find("\r\n", begin);
-      if (end == std::string::npos) {
-        this->_status = E_REQUEST_BAD;
-        this->_responseCode = BAD_REQUEST;
+void Request::handleChunkedBody(std::string fragment) {
+  this->_chunk.append(fragment);
+
+  while (true) {
+    if (this->_chunkSize < 1) {
+      size_t pos = this->_chunk.find("\r\n");
+      if (pos == std::string::npos) {
         return;
       }
 
-      chunkSize = Parser::strtoll(fragment.substr(begin, end - begin), 16);
+      this->_chunk.erase(pos, 2);
+      this->_chunkContent.append(
+          this->_chunk.substr(pos, this->_chunk.size() - pos));
+      this->_chunk.erase(pos, this->_chunk.size() - pos);
 
-      if (chunkSize == 0 && fragment.substr(end, 4) == "\r\n\r\n") {
-        this->_status = E_REQUEST_COMPLETE;
-        return;
-      } else if (chunkSize < 1) {
-        this->_status = E_REQUEST_BAD;
-        this->_responseCode = BAD_REQUEST;
+      this->_chunkSize = Parser::strtoll(this->_chunk, 16);
+      if (!this->_chunk.compare("0")) {
+        this->_status = Request::E_REQUEST_COMPLETE;
         return;
       }
 
-      maxSize -= (end - begin) + 2;
-      begin = end + 2;
+      this->_chunk.clear();
     }
 
-    if (chunkSize < maxSize) {
-      maxSize = chunkSize;
+    if (this->_chunk.size() > 0) {
+      this->_chunkContent.append(this->_chunk.substr(0, this->_chunk.size()));
+      this->_chunk.erase(0, this->_chunk.size());
     }
 
-    str = fragment.substr(begin, maxSize);
-    this->_body.append(str);
+    if (this->_chunkSize + 2 > this->_chunkContent.size()) {
+      this->_chunkSize -= this->_chunkContent.size();
+      this->_body.append(
+          this->_chunkContent.substr(0, this->_chunkContent.size()));
+      this->_chunkContent.erase(0, this->_chunkContent.size());
+      return;
+    }
 
-    chunkSize -= maxSize;
-    begin += maxSize + 2;
+    this->_body.append(this->_chunkContent.substr(0, this->_chunkSize));
+    this->_chunkContent.erase(0, this->_chunkSize);
+    this->_chunkSize = 0;
+
+    if (this->_chunkContent.size() > 2) {
+      this->_chunk.append(
+          this->_chunkContent.substr(2, this->_chunkContent.size() - 2));
+    }
+
+    this->_chunkContent.clear();
   }
 }
 
 void Request::appendRawBody(std::string &fragment) {
   if (this->_isChucked) {
-    return handleChunkedBody(fragment);
+    handleChunkedBody(fragment);
+    return;
   }
 
   size_t remainingLength = this->_contentLength - this->_body.size();
@@ -246,11 +292,6 @@ void Request::appendRawData(std::string &fragment) {
   }
 }
 
-bool  Request::getIsBinary() const
-{
-  return false;
-}
-
 void Request::clean() {
   this->_path.clear();
   this->_method.clear();
@@ -258,8 +299,12 @@ void Request::clean() {
   this->_host.clear();
   this->_header.clear();
   this->_body.clear();
+  this->_chunk.clear();
+  this->_chunkContent.clear();
   this->_responseCode.clear();
+  this->_chunkSize = 0;
   this->_contentLength = 0;
   this->_isChucked = false;
+  this->_isBinary = true;
   this->_status = E_REQUEST_HEADER_INCOMPLETE;
 }

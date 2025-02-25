@@ -1,8 +1,7 @@
 #include "Response.hpp"
 #include "Parser.hpp"
 
-Response::Response() : _isListing(false), _isRedirect(false) 
-{ 
+Response::Response() : _isListing(false), _isRedirect(false) {
   this->_responseCode = OK;
   _status_codes["200"] = OK;
   _status_codes["201"] = CREATED;
@@ -30,14 +29,9 @@ Response &Response::operator=(const Response &src) {
   return *this;
 }
 
-std::string Response::get() const {
-  std::string response = this->_header + "\r\n" + this->_body;
+std::string Response::get() const { return this->_message; }
 
-  return response;
-}
-
-std::string Response::get(const std::string& status) const 
-{
+std::string Response::get(const std::string &status) const {
   if (this->_status_codes.find(status) == this->_status_codes.end())
     return OK;
   return this->_status_codes.at(status);
@@ -46,6 +40,8 @@ std::string Response::get(const std::string& status) const
 void Response::setAttribute(const std::string &key, const std::string &value) {
   this->_attributes[key] = value;
 }
+
+void Response::erase(size_t length) { this->_message.erase(0, length); }
 
 void Response::generate(const std::string &fragment, Request &request) {
   std::map<std::string, std::string>::const_iterator it;
@@ -65,15 +61,23 @@ void Response::generate(const std::string &fragment, Request &request) {
   }
 
   this->_body = fragment;
+  this->_message = this->_header + "\r\n" + this->_body;
+}
+
+void Response::generate(const std::string &fragment) {
+  this->_message = fragment;
 }
 
 void Response::clean() {
   this->_responseCode = OK;
   this->_header.clear();
   this->_body.clear();
+  this->_message.clear();
   this->_attributes.clear();
   this->_isListing = false;
 }
+
+std::string Response::getMessage() const { return this->_message; }
 
 bool Response::getIsListing() const { return this->_isListing; }
 

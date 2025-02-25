@@ -1,14 +1,15 @@
 #include "Client.hpp"
 #include "Request.hpp"
-#include <iostream>
 #include <sys/socket.h>
 #include <unistd.h>
 
 Client::Client(int serverFd, int clientFd)
-    : _serverFd(serverFd), _clientFd(clientFd), _isClose(false) {}
+    : _serverFd(serverFd), _clientFd(clientFd), _request(clientFd),
+      _isClose(false) {}
 
 Client::Client(const Client &src)
-    : _serverFd(src._serverFd), _clientFd(src._clientFd) {
+    : _serverFd(src._serverFd), _clientFd(src._clientFd),
+      _request(src._clientFd) {
   *this = src;
 }
 
@@ -38,21 +39,24 @@ bool Client::receive() {
     this->_request.setResponseCode(AHttpMessage::INTERNAL_SERVER_ERROR);
     this->_isClose = true;
     return true;
+    // } else if (bytesRead == 0) {
+    //
   }
-
-  buffer[bytesRead] = '\0';
 
   if (bytesRead > 0) {
-    std::string fragment = buffer;
+    std::string fragment(buffer, bytesRead);
 
-    // std::cout << fragment << "FRAGMENT" << std::endl;
+    // std::cout << "///////////FRAGMENT/////////////" << std::endl;
+    // std::string::const_iterator it;
+    // for (it = fragment.begin(); it != fragment.end(); it++) {
+    //   if (isprint(*it)) {
+    //     std::cout << *it;
+    //   }
+    // }
+    // std::cout << std::endl;
+    // std::cout << "/////////////END////////////////" << std::endl;
 
     this->_request.appendRawData(fragment);
-  }
-
-  if (bytesRead < BUFFER_SIZE - 1 &&
-      this->_request.getStatus() > Request::E_REQUEST_COMPLETE) {
-    this->_request.setStatus(Request::E_REQUEST_BAD);
   }
 
   return this->_request.getStatus() <= Request::E_REQUEST_COMPLETE;
