@@ -4,6 +4,14 @@ const std::string AHttpMessage::OK = "200 OK";
 
 const std::string AHttpMessage::CREATED = "201 Created";
 
+const std::string AHttpMessage::MOVED_PERM = "301 Moved Permanently";
+
+const std::string AHttpMessage::FOUND = "302 Found";
+
+const std::string AHttpMessage::TEMP_REDIRECT = "307 Temporary Redirect";
+
+const std::string AHttpMessage::PERM_REDIRECT = "308 Permanent Redirect";
+
 const std::string AHttpMessage::BAD_REQUEST = "400 Bad Request";
 
 const std::string AHttpMessage::NOT_FOUND = "404 Not Found";

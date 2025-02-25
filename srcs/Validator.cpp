@@ -30,6 +30,7 @@ void  Validator::init()
   Validator::_validators["ip"] = &Validator::validateIp;
   Validator::_validators["port"] = &Validator::validatePort;
   Validator::_validators["protocol"] = &Validator::validateProtocol;
+  Validator::_validators["error_code"] = &Validator::validateErrorCode;
 }
 
 bool  Validator::validate(std::string key, std::string& value)
@@ -122,6 +123,11 @@ bool  Validator::validateMethod(std::string& value)
 bool  Validator::validateProtocol(std::string& value)
 {
   return value == "HTTP/1.1";
+}
+
+bool  Validator::validateErrorCode(std::string& value)
+{
+  return !(value.length() != 3 || (value[0] != '4' && value[0] != '5') || (!std::isdigit(value[1]) || !std::isdigit(value[2])));
 }
 
 void  Validator::throwError(std::string message)

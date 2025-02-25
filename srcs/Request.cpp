@@ -230,6 +230,11 @@ void Request::appendRawData(std::string &fragment) {
   }
 }
 
+bool  Request::getIsBinary() const
+{
+  return false;
+}
+
 void Request::clean() {
   this->_path.clear();
   this->_method.clear();

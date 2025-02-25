@@ -21,6 +21,7 @@ public:
   std::string getHost() const;
   std::string getMethod() const;
   Status getStatus() const;
+  bool getIsBinary() const;
 
   void set(const std::string &key, const std::string &value);
   void setStatus(Request::Status status);

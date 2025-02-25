@@ -64,6 +64,12 @@ bool  Webserv::is_running = true;
 
 bool  Webserv::configure(const std::string& configFile)
 {
+  if (access("./var/www/index.html", R_OK) == -1 || access("./var/error/error.html", R_OK) == -1)
+    this->throwError("default files index.html and error.html needed with read permission to launch webserv");
+
+  if (access("./var/www/index.html", X_OK) == 0 || access("./var/error/error.html", X_OK) == 0)
+    this->throwError("execution right are forbidden for default files index.html and error.html");
+  
   std::ifstream file(configFile.c_str());
 
   std::cout << "Configuration from file : '" << configFile << "'" << std::endl;
@@ -307,7 +313,7 @@ void  Webserv::run()
         {
           if (client->receive())
           {
-            events[i].events = EPOLLOUT;
+            events[i].events = EPOLLOUT | EPOLLET;
             if (epoll_ctl(this->_epoll_fd, EPOLL_CTL_MOD, events[i].data.fd, &events[i]) == -1)
               this->throwError("Epoll mod failed");
             continue;
