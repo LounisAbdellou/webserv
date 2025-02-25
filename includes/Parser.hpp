@@ -22,6 +22,8 @@ class Parser {
     static std::string							getKey(const std::string& line);
     static std::string							getValue(const std::string& key, const std::string& line);
     static std::string							getLocation(const std::string& line);
+    static std::string							getExtension(const std::string& path);
+    static std::string							getFolder(const std::string& path);
 		static std::vector<std::string>	getRequestLine(const std::string &header, size_t &pos);
 		static std::vector<std::string>	getHeaderAttr(const std::string &header, size_t &pos);
 		static long long								strtoll(const std::string &str, int base);

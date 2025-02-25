@@ -19,6 +19,8 @@ Client &Client::operator=(const Client &src) {
 
 int Client::getServerFd() const { return _serverFd; }
 
+int Client::getClientFd() const { return _clientFd; }
+
 Request &Client::getRequest() { return this->_request; }
 
 bool Client::receive() {
@@ -48,8 +50,10 @@ bool Client::receive() {
 }
 
 bool Client::isClose() const {
-  char buffer[42];
-  ssize_t bytesRead = recv(this->_clientFd, buffer, 42, MSG_PEEK);
+  return this->_is_close;
+}
 
-  return bytesRead < 1;
+void  Client::setIsClose(bool value)
+{
+  this->_is_close = value;
 }

@@ -14,6 +14,8 @@ public:
   static const std::string CREATED;
   static const std::string BAD_REQUEST;
   static const std::string NOT_FOUND;
+  static const std::string FORBIDDEN;
+  static const std::string NOT_ALLOWED;
   static const std::string LENGTH_REQUIRED;
   static const std::string HEADER_TOO_LARGE;
 

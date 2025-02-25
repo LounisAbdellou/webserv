@@ -206,6 +206,8 @@ void Request::appendRawBody(std::string &fragment) {
     this->_status = E_REQUEST_COMPLETE;
   }
 
+  /*if (remainingLength > fragment.length())*/
+  /*  remainingLength = fragment.length();*/
   std::string str = fragment.substr(0, remainingLength);
   fragment.erase(0, remainingLength);
 

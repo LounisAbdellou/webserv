@@ -153,8 +153,11 @@ void  Webserv::configureLocation(std::ifstream& file, Server* server, const std:
   std::string line;
   std::string key;
   
+
   if (!server->set(path, location))
     Parser::throwError("Try to rewrite location.", location);
+  
+  location->set("key", path);
   
   while (std::getline(file, line))
   {
@@ -181,8 +184,7 @@ void  Webserv::init()
   std::cout << "Init servers..." << std::endl;
   for (std::vector<Server*>::iterator server = this->_servers.begin(); server != this->_servers.end(); ++server)
   {
-    if (!((*server)->isset("listen")))
-      (*server)->set("listen", "80");
+    (*server)->setDefault();
     this->initServer(*server);
     std::cout << **server << std::endl;
   }
@@ -288,10 +290,11 @@ void  Webserv::run()
 				int flag = fcntl(client_fd, F_GETFL, 0);
         if (fcntl(client_fd, F_SETFL, flag | O_NONBLOCK) == -1)
           this->throwError("fcntl failed");
-        e.events = EPOLLIN;
+        e.events = EPOLLIN | EPOLLET;
         e.data.fd = client_fd;
+        if (epoll_ctl(this->_epoll_fd, EPOLL_CTL_ADD, client_fd, &e) == -1)
+          this->throwError("Epoll add failed");
         Client* client = new Client(events[i].data.fd, client_fd);
-        epoll_ctl(this->_epoll_fd, EPOLL_CTL_ADD, client_fd, &e);
         if (this->_clients[client_fd])
           delete this->_clients[client_fd];
         this->_clients[client_fd] = client;
@@ -299,14 +302,33 @@ void  Webserv::run()
       else if (this->_clients.find(events[i].data.fd) != this->_clients.end())
       {
         Client* client = this->_clients[events[i].data.fd];
-        if (client->receive())
+        
+        if (events[i].events == EPOLLIN)
+        {
+          if (client->receive())
+          {
+            events[i].events = EPOLLOUT | EPOLLET;
+            if (epoll_ctl(this->_epoll_fd, EPOLL_CTL_MOD, events[i].data.fd, &events[i]) == -1)
+              this->throwError("Epoll mod failed");
+            continue;
+          }
+        }
+
+        if (events[i].events == EPOLLOUT && !client->isClose())
         {
           Server* server = this->_sockets[client->getServerFd()]->front();
           server->handle(client->getRequest());
-          server->send(events[i].data.fd);
+          if (server->send(events[i].data.fd))
+          {
+            events[i].events = EPOLLIN | EPOLLET;
+            if (epoll_ctl(this->_epoll_fd, EPOLL_CTL_MOD, events[i].data.fd, &events[i]) == -1)
+              this->throwError("Epoll mod failed");
+          }
+          else
+            client->setIsClose(true);
         }
-        if (client->isClose())
-          this->close(events[i].data.fd);
+
+        if (client->isClose()) this->close(events[i].data.fd);
       }
     }
   }

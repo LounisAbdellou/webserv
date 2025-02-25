@@ -7,7 +7,8 @@
 
 class Response : public AHttpMessage {
 private:
-  std::map<std::string, std::string> _attributes;
+  std::map<std::string, std::string>  _attributes;
+  bool                         _is_listing;
 
 public:
   Response();
@@ -21,6 +22,9 @@ public:
   std::string get() const;
   void generate(std::string &fragment, Request &request);
   void clean();
+
+  bool  getIsListing() const;
+  void  setIsListing(bool value);
 };
 
 #endif // !RESPONSE_HPP

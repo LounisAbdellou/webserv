@@ -10,6 +10,7 @@ private:
   const int _serverFd;
   const int _clientFd;
   Request _request;
+  bool    _is_close;
 
   Client(const Client &src);
   Client &operator=(const Client &src);
@@ -19,10 +20,12 @@ public:
   ~Client() {};
 
   int getServerFd() const;
+  int getClientFd() const;
   Request &getRequest();
 
   bool receive();
   bool isClose() const;
+  void  setIsClose(bool value);
 };
 
 #endif // !CLIENT_HPP
