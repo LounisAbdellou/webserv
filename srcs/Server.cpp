@@ -229,7 +229,7 @@ std::string Server::handleAction(const std::string& ressource, Request& request,
   if (!method.compare("DELETE"))
     return this->handleDelete(ressource, location);
   if (!method.compare("POST"))
-    return this->handlePost(ressource, request.getBody(), location);
+    return this->handlePost(ressource, request, location);
   std::string err = ressource;
   this->handleError(AHttpMessage::NOT_ALLOWED, err, location);
   return this->handleGet(err);
@@ -264,16 +264,23 @@ std::string Server::handleDelete(const std::string& path, Location* location)
   return "";
 }
 
-std::string Server::handlePost(const std::string& path, const std::string body, Location* location)
+std::string Server::handlePost(const std::string& path, const Request& request, Location* location)
 {
-  std::ofstream file(path.c_str());
-  if (!file || this->_response.getResponseCode().compare("200 OK"))
+  std::ofstream file;
+	std::string body = request.getBody();
+
+  if (request.getIsBinary())
+    file.open(path.c_str(), std::ios::binary);
+  else
+    file.open(path.c_str());
+
+  if (!file.is_open() || this->_response.getResponseCode().compare("200 OK"))
   {
     std::string ressource = path;
     this->handleError(this->_response.getResponseCode(), ressource, location);
     return this->handleGet(ressource);
-  }  
-  file << body;
+  }
+  file.write(body.c_str(), body.size());
   file.close();
   return "";
 }

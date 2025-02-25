@@ -1,7 +1,7 @@
 #ifndef CLIENT_HPP
 #define CLIENT_HPP
 
-#define BUFFER_SIZE 1024
+#define BUFFER_SIZE 4096
 
 #include "Request.hpp"
 
@@ -10,7 +10,7 @@ private:
   const int _serverFd;
   const int _clientFd;
   Request _request;
-  bool    _isClose;
+  bool _isClose;
 
   Client(const Client &src);
   Client &operator=(const Client &src);
@@ -25,7 +25,7 @@ public:
 
   bool receive();
   bool isClose() const;
-  void  setIsClose(bool value);
+  void setIsClose(bool value);
 };
 
 #endif // !CLIENT_HPP

@@ -16,6 +16,7 @@ public:
   Request();
   ~Request() {};
 
+  bool getIsBinary() const;
   int getContentLength() const;
   std::string getPath() const;
   std::string getHost() const;
@@ -34,6 +35,7 @@ private:
   std::string _method;
   std::string _protocol;
 
+  bool _isBinary;
   bool _isChucked;
   int _contentLength;
   Status _status;
@@ -46,6 +48,7 @@ private:
   void setContentLength(const std::string &contentLength);
   void setHost(const std::string &host);
   void setIsChucked(const std::string &transferEncoding);
+  void setIsBinary(const std::string &contentType);
   bool setMethod(std::string &method);
   bool setPath(std::string &path);
   bool setProtocol(std::string &protocol);

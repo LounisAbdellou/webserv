@@ -69,7 +69,7 @@ class Server {
     std::string                                             handleCgi();
     std::string                                             handleGet(const std::string& path);
     std::string                                             handleDelete(const std::string& path, Location* location);
-    std::string                                             handlePost(const std::string& path, const std::string body, Location* location);
+    std::string                                             handlePost(const std::string& path, const Request& request, Location* location);
     std::string                                             handleAction(const std::string& ressource, Request& request, Location* location);
     void                                                    handleFile(std::string& ressource, Location* location, Request& request);
     std::string                                             handleListing(const std::string& path);

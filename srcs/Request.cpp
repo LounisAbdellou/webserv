@@ -4,10 +4,12 @@
 #include <vector>
 
 Request::Request() : AHttpMessage() {
+  this->_isBinary = true;
   this->_isChucked = false;
   this->_status = E_REQUEST_HEADER_INCOMPLETE;
   this->_contentLength = 0;
   this->_setters["Host"] = &Request::setHost;
+  this->_setters["Content-Type"] = &Request::setIsChucked;
   this->_setters["Content-Length"] = &Request::setContentLength;
   this->_setters["Transfer-Encoding"] = &Request::setIsChucked;
 }
@@ -27,6 +29,8 @@ Request &Request::operator=(const Request &src) {
 
   return *this;
 }
+
+bool Request::getIsBinary() const { return this->_isBinary; }
 
 int Request::getContentLength() const { return this->_contentLength; }
 
@@ -54,6 +58,16 @@ void Request::setIsChucked(const std::string &transferEncoding) {
   if (transferEncoding == "chunked") {
     this->_isChucked = true;
   }
+}
+
+void Request::setIsBinary(const std::string &contentType) {
+  if (contentType == "application/json" || contentType == "text/html" ||
+      contentType == "text/plain") {
+    this->_isBinary = false;
+    return;
+  }
+
+  this->_isBinary = true;
 }
 
 void Request::setContentLength(const std::string &contentLength) {
@@ -193,7 +207,7 @@ void Request::handleChunkedBody(std::string &fragment) {
     this->_body.append(str);
 
     chunkSize -= maxSize;
-    begin += maxSize + 2;
+    begin += maxSize + (!chunkSize ? 2 : 0);
   }
 }
 
@@ -240,5 +254,6 @@ void Request::clean() {
   this->_responseCode.clear();
   this->_contentLength = 0;
   this->_isChucked = false;
+  this->_isBinary = true;
   this->_status = E_REQUEST_HEADER_INCOMPLETE;
 }

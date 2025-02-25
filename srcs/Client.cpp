@@ -1,6 +1,5 @@
 #include "Client.hpp"
 #include "Request.hpp"
-#include <iostream>
 #include <sys/socket.h>
 #include <unistd.h>
 
@@ -23,30 +22,33 @@ int Client::getClientFd() const { return _clientFd; }
 
 Request &Client::getRequest() { return this->_request; }
 
+// #include <iostream>
 bool Client::receive() {
   char buffer[BUFFER_SIZE];
 
-  ssize_t bytesRead =
-      recv(this->_clientFd, buffer, BUFFER_SIZE - 1, MSG_DONTWAIT);
+  ssize_t bytesRead = recv(this->_clientFd, buffer, BUFFER_SIZE, MSG_DONTWAIT);
   if (bytesRead == -1) {
     this->_request.setStatus(Request::E_REQUEST_BAD);
     this->_request.setResponseCode(AHttpMessage::INTERNAL_SERVER_ERROR);
     return true;
+    // } else if (bytesRead == 0) {
+    //
   }
-
-  buffer[bytesRead] = '\0';
 
   if (bytesRead > 0) {
-    std::string fragment = buffer;
+    std::string fragment(buffer, bytesRead);
 
-    std::cout << fragment << "FRAGMENT" << std::endl;
+    // std::cout << "///////////FRAGMENT/////////////" << std::endl;
+    // std::string::const_iterator it;
+    // for (it = fragment.begin(); it != fragment.end(); it++) {
+    //   if (isprint(*it)) {
+    //     std::cout << *it;
+    //   }
+    // }
+    // std::cout << std::endl;
+    // std::cout << "/////////////END////////////////" << std::endl;
 
     this->_request.appendRawData(fragment);
-  }
-
-  if (bytesRead < BUFFER_SIZE - 1 &&
-      this->_request.getStatus() > Request::E_REQUEST_COMPLETE) {
-    this->_request.setStatus(Request::E_REQUEST_BAD);
   }
 
   return this->_request.getStatus() <= Request::E_REQUEST_COMPLETE;
