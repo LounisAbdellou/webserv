@@ -121,7 +121,7 @@ std::string	Parser::getListingHtml(const std::vector<struct Entry> &entries, con
 	std::string bPath = path.substr(9, path.size() - 9);
 
 	std::vector<struct Entry>::const_reverse_iterator it;
-	std::string listingHtml = "<html><head><title>Index of" + bPath + "</title>\
+	std::string listingHtml = "<html><head><title>Index of " + bPath + "</title>\
 														</head><body><h1>Index of " + bPath + "</h1>\
 														<table><thead><tr><th></th></tr></thead><tbody>";
 

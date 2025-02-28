@@ -12,6 +12,10 @@ protected:
 public:
   static const std::string OK;
   static const std::string CREATED;
+  static const std::string MOVED_PERM;
+  static const std::string FOUND;
+  static const std::string TEMP_REDIRECT;
+  static const std::string PERM_REDIRECT;
   static const std::string BAD_REQUEST;
   static const std::string NOT_FOUND;
   static const std::string FORBIDDEN;

@@ -39,6 +39,7 @@ class Validator {
     static bool                                           validateFile(std::string& value);
     static bool                                           validateMethod(std::string& value);
     static bool                                           validateProtocol(std::string& value);
+    static bool                                           validateErrorCode(std::string& value);
 };
 
 #endif

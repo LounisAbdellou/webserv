@@ -52,12 +52,6 @@ class Server {
     std::string                                             _ctx;
     std::string                                             _ctx_err;
     std::string                                             _server_name;
-    std::string                                             _root;
-    std::string                                             _index;
-    std::string                                             _error_page;
-    std::string                                             _allowed_method;
-    std::string                                             _allow_listing;
-    std::string                                             _redirect;
 
     void                                                    setListen(std::string& value);
     void                                                    setServerName(std::string& value);
@@ -71,24 +65,28 @@ class Server {
     std::string                                             getServerName() const;
     std::string                                             getListen() const;
     std::string                                             getIndex() const;
+    std::string                                             getRoot() const;
+    std::string                                             getAllowedMethod() const;
+    std::string                                             getAllowListing() const;
+    std::string                                             getRedirect() const;
+    std::string                                             getErrorPage() const;
     Location*                                               getLocation(const std::string& ressource);
 
     std::string                                             handleCgi();
-    std::string                                             handleGet(const std::string& path);
+    std::string                                             handleGet(const std::string& path, Location* location);
     std::string                                             handleDelete(const std::string& path, Location* location);
-    std::string                                             handlePost(const std::string& path, const std::string body, Location* location);
+    std::string                                             handlePost(const std::string& path, const Request& request, Location* location);
     std::string                                             handleAction(const std::string& ressource, Request& request, Location* location);
     void                                                    handleFile(std::string& ressource, Location* location, Request& request);
     std::string                                             handleListing(const std::string& path);
+    std::string                                             handleRedirect(Location* location);
     void                                                    handleError(std::string code, std::string& ressource, Location* location);
 
-    void                                                    handlePath(std::string& ressource, Location* location, Request& request);
+    void                                                    handlePath(std::string& ressource, Request& request, Location* location);
     bool                                                    checkPathAccess(std::string method, std::string& ressource);
-    bool                                                    checkPathType(std::string method, std::string& ressource, Location* location = NULL);
+    bool                                                    checkPathType(std::string method, std::string& ressource, Location* location);
     void                                                    addPathRoot(std::string& ressource, Location* location);
     void                                                    addPathIndex(std::string& ressource, Location* location);
-
-    bool                                                    isListingAllowed() const;
 };
 
 std::ostream&  operator<<(std::ostream& cout, const Server& server);

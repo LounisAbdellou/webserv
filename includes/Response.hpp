@@ -8,7 +8,9 @@
 class Response : public AHttpMessage {
 private:
   std::map<std::string, std::string>  _attributes;
-  bool                         _isListing;
+  std::map<std::string, std::string>  _status_codes;
+  bool                                _isListing;
+  bool                                _isRedirect;
 
 public:
   Response();
@@ -16,15 +18,19 @@ public:
   ~Response() {};
 
   Response &operator=(const Response &src);
-
+  
   void setAttribute(const std::string &key, const std::string &value);
 
   std::string get() const;
+  std::string get(const std::string& status) const;
   void generate(const std::string &fragment, Request &request);
   void clean();
 
   bool  getIsListing() const;
   void  setIsListing(bool value);
+  
+  bool  getIsRedirect() const;
+  void  setIsRedirect(bool value);
 };
 
 #endif // !RESPONSE_HPP

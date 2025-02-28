@@ -1,7 +1,24 @@
 #include "Response.hpp"
 #include "Parser.hpp"
 
-Response::Response() : _isListing(false) { this->_responseCode = OK; }
+Response::Response() : _isListing(false), _isRedirect(false) 
+{ 
+  this->_responseCode = OK;
+  _status_codes["200"] = OK;
+  _status_codes["201"] = CREATED;
+  _status_codes["301"] = MOVED_PERM;
+  _status_codes["302"] = FOUND;
+  _status_codes["307"] = TEMP_REDIRECT;
+  _status_codes["308"] = PERM_REDIRECT;
+  _status_codes["400"] = BAD_REQUEST;
+  _status_codes["404"] = NOT_FOUND;
+  _status_codes["403"] = FORBIDDEN;
+  _status_codes["405"] = NOT_ALLOWED;
+  _status_codes["411"] = LENGTH_REQUIRED;
+  _status_codes["431"] = HEADER_TOO_LARGE;
+  _status_codes["500"] = INTERNAL_SERVER_ERROR;
+  _status_codes["505"] = HTTP_VERSION;
+}
 
 Response::Response(const Response &src) { *this = src; }
 
@@ -19,6 +36,13 @@ std::string Response::get() const {
   return response;
 }
 
+std::string Response::get(const std::string& status) const 
+{
+  if (this->_status_codes.find(status) == this->_status_codes.end())
+    return OK;
+  return this->_status_codes.at(status);
+}
+
 void Response::setAttribute(const std::string &key, const std::string &value) {
   this->_attributes[key] = value;
 }
@@ -26,7 +50,7 @@ void Response::setAttribute(const std::string &key, const std::string &value) {
 void Response::generate(const std::string &fragment, Request &request) {
   std::map<std::string, std::string>::const_iterator it;
 
-  if (this->_responseCode == CREATED) {
+  if (this->_responseCode == CREATED && !_isRedirect) {
     this->setAttribute("Location",
                        "http://" + request.getHost() + request.getPath());
   }
@@ -54,3 +78,7 @@ void Response::clean() {
 bool Response::getIsListing() const { return this->_isListing; }
 
 void Response::setIsListing(bool value) { this->_isListing = value; }
+
+bool Response::getIsRedirect() const { return this->_isRedirect; }
+
+void Response::setIsRedirect(bool value) { this->_isRedirect = value; }
