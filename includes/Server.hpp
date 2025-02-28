@@ -5,6 +5,8 @@
 #include <string>
 #include <vector>
 #include <map>
+#include <dirent.h>
+#include <sys/types.h>
 #include "Location.hpp"
 #include "Validator.hpp"
 #include "Request.hpp"
@@ -15,6 +17,11 @@
 #include <sys/stat.h>
 #include <cstdio>
 #include <unistd.h>
+
+struct Entry {
+	std::string name;
+	bool isDir;
+};
 
 class Server {
   public:
