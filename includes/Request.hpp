@@ -34,11 +34,14 @@ private:
   std::string _host;
   std::string _method;
   std::string _protocol;
+  std::string _chunk;
+  std::string _chunkContent;
 
   bool _isBinary;
   bool _isChucked;
   int _contentLength;
   Status _status;
+  size_t _chunkSize;
 
   std::map<std::string, void (Request::*)(const std::string &)> _setters;
 
@@ -55,7 +58,7 @@ private:
 
   void parseHeader();
   size_t parseRequestLine(const std::string &header);
-  void handleChunkedBody(std::string &fragment);
+  void handleChunkedBody(std::string fragment);
   void appendRawHeader(std::string &fragment);
   void appendRawBody(std::string &fragment);
 };

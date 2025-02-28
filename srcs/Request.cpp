@@ -168,52 +168,93 @@ void Request::appendRawHeader(std::string &fragment) {
   this->parseHeader();
 }
 
-void Request::handleChunkedBody(std::string &fragment) {
-  std::string str;
-  size_t begin = 0;
-  size_t end = 0;
-  static long long chunkSize;
-  long long maxSize = fragment.size();
+void printTest(const std::string &fragment, std::string type) {
+  std::cout << "///////////" << type << "/////////////" << std::endl;
+  std::string::const_iterator it;
+  for (it = fragment.begin(); it != fragment.end(); it++) {
+    // if (isprint(*it)) {
+    std::cout << *it;
+    // }
+  }
+  std::cout << std::endl;
+  std::cout << "/////////////" << type << "END////////////////" << std::endl;
+}
 
-  while (begin < fragment.size()) {
-    if (!chunkSize) {
-      end = fragment.find("\r\n", begin);
-      if (end == std::string::npos) {
-        this->_status = E_REQUEST_BAD;
-        this->_responseCode = BAD_REQUEST;
+void Request::handleChunkedBody(std::string fragment) {
+  this->_chunk.append(fragment);
+
+  while (true) {
+    if (!_chunkSize) {
+      size_t pos = this->_chunk.find("\r\n");
+      if (pos == std::string::npos) {
         return;
       }
 
-      chunkSize = Parser::strtoll(fragment.substr(begin, end - begin), 16);
+      this->_chunk.erase(pos, 2);
+      this->_chunkContent.append(
+          this->_chunk.substr(pos, this->_chunk.size() - pos));
+      this->_chunk.erase(pos, this->_chunk.size() - pos);
 
-      if (chunkSize == 0 && fragment.substr(end, 4) == "\r\n\r\n") {
-        this->_status = E_REQUEST_COMPLETE;
-        return;
-      } else if (chunkSize < 1) {
-        this->_status = E_REQUEST_BAD;
-        this->_responseCode = BAD_REQUEST;
+      this->_chunkSize = Parser::strtoll(this->_chunk, 16);
+      if (!this->_chunk.compare("0\r\n\r\n")) {
+        std::cout << "OIJIODJSJI" << std::endl;
+        this->_status = Request::E_REQUEST_COMPLETE;
         return;
       }
+      this->_chunk.clear();
+    }
+    // 8b
+    // c
+    // 9b
+    // c
+    // 10b
+    // c
+    //
+    // c2
+    // 7b
+    // c
+    // 0b
+    // EOT
 
-      maxSize -= (end - begin) + 2;
-      begin = end + 2;
+    printTest(this->_chunk, "CHUNK");
+    printTest(this->_chunkContent, "CONTENT");
+    std::cout << "SIZE: " << this->_chunkSize << std::endl;
+
+    if (this->_chunkContent.empty()) {
     }
 
-    if (chunkSize < maxSize) {
-      maxSize = chunkSize;
+    if (this->_chunkSize > this->_chunkContent.size() - 2) {
+      std::cout << "PROC 1" << std::endl;
+      this->_chunkSize -= this->_chunkContent.size();
+      this->_body.append(
+          this->_chunkContent.substr(0, this->_chunkContent.size()));
+      this->_chunkContent.erase(0, this->_chunkContent.size());
+      return;
     }
 
-    str = fragment.substr(begin, maxSize);
-    this->_body.append(str);
+    std::cout << "PROC 2" << std::endl;
+    this->_body.append(this->_chunkContent.substr(0, this->_chunkSize));
+    this->_chunkContent.erase(0, this->_chunkSize);
+    this->_chunkSize = 0;
 
-    chunkSize -= maxSize;
-    begin += maxSize + (!chunkSize ? 2 : 0);
+    this->_chunk.append(
+        this->_chunkContent.substr(2, this->_chunkContent.size() - 2));
+    this->_chunkContent.erase(2, this->_chunkContent.size() - 2);
+    this->_chunkContent.clear();
+
+    // printTest(this->_chunk, "CHUNK");
+    // printTest(this->_chunkContent, "CONTENT");
+    // std::cout << "SIZE: " << this->_chunkSize << std::endl;
   }
 }
 
 void Request::appendRawBody(std::string &fragment) {
   if (this->_isChucked) {
-    return handleChunkedBody(fragment);
+    handleChunkedBody("12\r\nJust a simple ");
+    handleChunkedBody("test\r\n12");
+    handleChunkedBody("\r\nJust a simple test\r\n");
+    handleChunkedBody("12\r\nJust a simple test\r\n0\r\n\r\n");
+    return;
   }
 
   size_t remainingLength = this->_contentLength - this->_body.size();
