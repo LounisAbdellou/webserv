@@ -7,7 +7,10 @@ Request::Request() : AHttpMessage() {
   this->_isBinary = true;
   this->_isChucked = false;
   this->_status = E_REQUEST_HEADER_INCOMPLETE;
+  this->_chunkSize = 0;
   this->_contentLength = 0;
+  this->_chunk = "";
+  this->_chunkContent = "";
   this->_setters["Host"] = &Request::setHost;
   this->_setters["Content-Type"] = &Request::setIsChucked;
   this->_setters["Content-Length"] = &Request::setContentLength;
@@ -175,8 +178,10 @@ void printTest(const std::string &fragment, std::string type) {
     // if (isprint(*it)) {
     std::cout << *it;
     // }
+    if (it + 1 == fragment.end()) {
+      std::cout << std::endl;
+    }
   }
-  std::cout << std::endl;
   std::cout << "/////////////" << type << "END////////////////" << std::endl;
 }
 
@@ -184,7 +189,7 @@ void Request::handleChunkedBody(std::string fragment) {
   this->_chunk.append(fragment);
 
   while (true) {
-    if (!_chunkSize) {
+    if (this->_chunkSize < 1) {
       size_t pos = this->_chunk.find("\r\n");
       if (pos == std::string::npos) {
         return;
@@ -196,35 +201,20 @@ void Request::handleChunkedBody(std::string fragment) {
       this->_chunk.erase(pos, this->_chunk.size() - pos);
 
       this->_chunkSize = Parser::strtoll(this->_chunk, 16);
-      if (!this->_chunk.compare("0\r\n\r\n")) {
-        std::cout << "OIJIODJSJI" << std::endl;
+      if (!this->_chunk.compare("0")) {
         this->_status = Request::E_REQUEST_COMPLETE;
         return;
       }
+
       this->_chunk.clear();
     }
-    // 8b
-    // c
-    // 9b
-    // c
-    // 10b
-    // c
-    //
-    // c2
-    // 7b
-    // c
-    // 0b
-    // EOT
 
-    printTest(this->_chunk, "CHUNK");
-    printTest(this->_chunkContent, "CONTENT");
-    std::cout << "SIZE: " << this->_chunkSize << std::endl;
-
-    if (this->_chunkContent.empty()) {
+    if (this->_chunk.size() > 0) {
+      this->_chunkContent.append(this->_chunk.substr(0, this->_chunk.size()));
+      this->_chunk.erase(0, this->_chunk.size());
     }
 
-    if (this->_chunkSize > this->_chunkContent.size() - 2) {
-      std::cout << "PROC 1" << std::endl;
+    if (this->_chunkSize + 2 > this->_chunkContent.size()) {
       this->_chunkSize -= this->_chunkContent.size();
       this->_body.append(
           this->_chunkContent.substr(0, this->_chunkContent.size()));
@@ -232,28 +222,22 @@ void Request::handleChunkedBody(std::string fragment) {
       return;
     }
 
-    std::cout << "PROC 2" << std::endl;
     this->_body.append(this->_chunkContent.substr(0, this->_chunkSize));
     this->_chunkContent.erase(0, this->_chunkSize);
     this->_chunkSize = 0;
 
-    this->_chunk.append(
-        this->_chunkContent.substr(2, this->_chunkContent.size() - 2));
-    this->_chunkContent.erase(2, this->_chunkContent.size() - 2);
-    this->_chunkContent.clear();
+    if (this->_chunkContent.size() > 2) {
+      this->_chunk.append(
+          this->_chunkContent.substr(2, this->_chunkContent.size() - 2));
+    }
 
-    // printTest(this->_chunk, "CHUNK");
-    // printTest(this->_chunkContent, "CONTENT");
-    // std::cout << "SIZE: " << this->_chunkSize << std::endl;
+    this->_chunkContent.clear();
   }
 }
 
 void Request::appendRawBody(std::string &fragment) {
   if (this->_isChucked) {
-    handleChunkedBody("12\r\nJust a simple ");
-    handleChunkedBody("test\r\n12");
-    handleChunkedBody("\r\nJust a simple test\r\n");
-    handleChunkedBody("12\r\nJust a simple test\r\n0\r\n\r\n");
+    handleChunkedBody(fragment);
     return;
   }
 
@@ -292,7 +276,10 @@ void Request::clean() {
   this->_host.clear();
   this->_header.clear();
   this->_body.clear();
+  this->_chunk.clear();
+  this->_chunkContent.clear();
   this->_responseCode.clear();
+  this->_chunkSize = 0;
   this->_contentLength = 0;
   this->_isChucked = false;
   this->_isBinary = true;
