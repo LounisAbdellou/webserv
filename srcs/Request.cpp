@@ -11,7 +11,8 @@ Request::Request(int clientFd) : AHttpMessage(), _clientFd(clientFd) {
   this->_contentLength = 0;
   this->_setters["Host"] = &Request::setHost;
   this->_setters["User-Agent"] = &Request::setUserAgent;
-  this->_setters["Content-Type"] = &Request::setContentType;
+  this->_setters["Cookie"] = &Request::setCookies;
+  this->_setters["Content-Type"] = &Request::setIsChucked;
   this->_setters["Content-Length"] = &Request::setContentLength;
   this->_setters["Transfer-Encoding"] = &Request::setIsChucked;
 }
@@ -48,11 +49,13 @@ std::string Request::getMethod() const { return this->_method; }
 
 std::string Request::getQuery() const { return this->_query; }
 
-std::string Request::getCookie() const { return ""; }
+std::string Request::getCookie() const { return this->_cookies; }
 
-std::string Request::getUserAgent() const { return ""; }
+std::string Request::getUserAgent() const { return this->_userAgent; }
 
-int Request::getSocket() const { return 3; }
+std::string Request::getParams() const { return this->_params; }
+
+int Request::getSocket() const { return this->_clientFd; }
 
 Request::Status Request::getStatus() const { return this->_status; }
 
@@ -93,6 +96,12 @@ void Request::setContentType(const std::string &contentType) {
 void Request::setContentLength(const std::string &contentLength) {
   this->_contentLength = Parser::strtoll(contentLength, 10);
 }
+
+void Request::setCookies(const std::string &cookies) {
+  this->_cookies = cookies;
+}
+
+void Request::setParams(const std::string &params) { this->_params = params; }
 
 bool Request::setMethod(std::string &method) {
   if (!Validator::validate("method", method)) {

@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+	<meta charset="UTF-8">
+	<title>Tester Requête DELETE</title>
+</head>
+
+<body>
+	<h1>Tester une Requête DELETE</h1>
+	<button id="delete-btn">Envoyer DELETE</button>
+
+	<script>
+		document.getElementById('delete-btn').addEventListener('click', function () {
+			fetch('/test-post', {
+				method: 'DELETE',
+			})
+				.then(response => response.json())
+				.then(data => console.log(data))
+				.catch(error => console.error('Erreur :', error));
+		});
+	</script>
+</body>
+
+</html>

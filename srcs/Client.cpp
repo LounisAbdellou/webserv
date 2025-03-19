@@ -39,23 +39,10 @@ bool Client::receive() {
     this->_request.setResponseCode(AHttpMessage::INTERNAL_SERVER_ERROR);
     this->_isClose = true;
     return true;
-    // } else if (bytesRead == 0) {
-    //
   }
 
   if (bytesRead > 0) {
     std::string fragment(buffer, bytesRead);
-
-    // std::cout << "///////////FRAGMENT/////////////" << std::endl;
-    // std::string::const_iterator it;
-    // for (it = fragment.begin(); it != fragment.end(); it++) {
-    //   if (isprint(*it)) {
-    //     std::cout << *it;
-    //   }
-    // }
-    // std::cout << std::endl;
-    // std::cout << "/////////////END////////////////" << std::endl;
-
     this->_request.appendRawData(fragment);
   }
 
