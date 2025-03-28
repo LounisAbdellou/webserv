@@ -17,9 +17,15 @@ public:
   ~Request() {};
 
   int getContentLength() const;
+  std::string getContentLen() const;
   std::string getPath() const;
   std::string getHost() const;
   std::string getMethod() const;
+  std::string getQuery() const;
+  std::string getContentType() const;
+  std::string getCookie() const;
+  std::string getUserAgent() const;
+  int getSocket() const;
   Status getStatus() const;
   bool getIsBinary() const;
 
@@ -34,6 +40,7 @@ private:
   std::string _host;
   std::string _method;
   std::string _protocol;
+  std::string _query;
 
   bool _isChucked;
   int _contentLength;

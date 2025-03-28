@@ -239,6 +239,28 @@ std::string Parser::getFolder(const std::string& path)
   return path.substr(0, slash);
 }
 
+std::vector<std::string>  Parser::getSocketInfo(int socket)
+{
+  struct sockaddr_in addr;
+  socklen_t addr_len = sizeof(addr);
+  std::vector<std::string> host;
+
+  if (getsockname(socket, (struct sockaddr *)&addr, &addr_len) == -1) 
+  {
+    host.push_back("");
+    host.push_back("");
+    return host;
+  }
+  char ip_addr[INET_ADDRSTRLEN];
+  inet_ntop(AF_INET, &(addr.sin_addr), ip_addr, INET_ADDRSTRLEN);
+  std::string ip = ip_addr;
+  host.push_back(ip);
+  std::string port = Parser::to_string(ntohs(addr.sin_port));
+  host.push_back(port);
+
+  return host;
+}
+
 void  Parser::throwError(std::string message, Location* location)
 {
   if (location)

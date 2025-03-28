@@ -16,6 +16,8 @@
 #include <stdlib.h>       // exit()
 #include "Server.hpp"
 #include "Location.hpp"
+#include <netinet/in.h>
+#include <arpa/inet.h>
 
 class Parser {
   public:
@@ -28,15 +30,14 @@ class Parser {
     static std::string							getLocation(const std::string& line);
     static std::string							getExtension(const std::string& path);
     static std::string							getFolder(const std::string& path);
-		static std::string							getEntryHtmlTag(struct Entry entry, std::string &path);
+    static std::string							getEntryHtmlTag(struct Entry entry, std::string &path);
     static std::string							getListingHtml(const std::vector<struct Entry> &dirEntries, const std::string &path);
-		static std::vector<std::string>	getRequestLine(const std::string &header, size_t &pos);
-		static std::vector<std::string>	getHeaderAttr(const std::string &header, size_t &pos);
-		static long long								strtoll(const std::string &str, int base);
-		static std::string							to_string(long long nbr);
+    static std::vector<std::string>	getRequestLine(const std::string &header, size_t &pos);
+    static std::vector<std::string>	getHeaderAttr(const std::string &header, size_t &pos);
+    static long long								strtoll(const std::string &str, int base);
+    static std::string							to_string(long long nbr);
+    static std::vector<std::string> getSocketInfo(int socket);
 
-
-    
     class		WebservParseException : public std::invalid_argument
     {
       public:

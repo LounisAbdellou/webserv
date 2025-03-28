@@ -4,6 +4,10 @@
 #include <vector>
 
 Request::Request() : AHttpMessage() {
+  this->_path = "";
+  this->_host = "";
+  this->_method = "";
+  this->_query = "";
   this->_isChucked = false;
   this->_status = E_REQUEST_HEADER_INCOMPLETE;
   this->_contentLength = 0;
@@ -30,11 +34,23 @@ Request &Request::operator=(const Request &src) {
 
 int Request::getContentLength() const { return this->_contentLength; }
 
+std::string Request::getContentLen() const { return ""; }
+
+std::string Request::getContentType() const { return ""; }
+
 std::string Request::getPath() const { return this->_path; }
 
 std::string Request::getHost() const { return this->_host; }
 
-std::string Request::getMethod() const { return this->_method; }
+std::string Request::getMethod() const { return "GET"; }
+
+std::string Request::getQuery() const { return this->_query; }
+
+std::string Request::getCookie() const { return ""; }
+
+std::string Request::getUserAgent() const { return ""; }
+
+int Request::getSocket() const { return 3; }
 
 Request::Status Request::getStatus() const { return this->_status; }
 
