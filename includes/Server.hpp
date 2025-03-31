@@ -17,6 +17,12 @@
 #include <sys/stat.h>
 #include <cstdio>
 #include <unistd.h>
+#include <sys/wait.h>
+#include <unistd.h>
+#include <string.h>
+#include <netdb.h>
+#include <stdlib.h>
+
 
 struct Entry {
 	std::string name;
@@ -29,7 +35,6 @@ class Server {
     ~Server();
 
     void                                      handle(Request& request);
-    void                                      setDefault();
     bool                                      send(int fd);
     bool                                      has(const std::string key) const;
     void                                      set(const std::string key, std::string value);
@@ -53,6 +58,8 @@ class Server {
     std::string                                             _ctx_err;
     std::string                                             _server_name;
 
+    std::string                                             _cgi_env[13];
+
     void                                                    setListen(std::string& value);
     void                                                    setServerName(std::string& value);
     void                                                    setRoot(std::string& value);
@@ -72,7 +79,6 @@ class Server {
     std::string                                             getErrorPage() const;
     Location*                                               getLocation(const std::string& ressource);
 
-    std::string                                             handleCgi();
     std::string                                             handleGet(const std::string& path, Location* location);
     std::string                                             handleDelete(const std::string& path, Location* location);
     std::string                                             handlePost(const std::string& path, const Request& request, Location* location);
@@ -81,6 +87,13 @@ class Server {
     std::string                                             handleListing(const std::string& path);
     std::string                                             handleRedirect(Location* location);
     void                                                    handleError(std::string code, std::string& ressource, Location* location);
+    
+    std::string                                             handleCgi(std::string& ressource, Request& request, Location* location, const std::string& ext);
+    char**                                                  constructArgsCgi(const std::string& ressource, const std::string& cgi_path);
+    void                                                    setEnvCgi(const std::string& ressource, Request& request, bool is_php);
+    std::string                                             executeCgi(int fds[2][2], const char* cgi_path, char** cgi_args);
+    void                                                    deleteTabCgi(char** cgi_args);
+    std::string                                             extractResponseCgi(int fd);
 
     void                                                    handlePath(std::string& ressource, Request& request, Location* location);
     bool                                                    checkPathAccess(std::string method, std::string& ressource);

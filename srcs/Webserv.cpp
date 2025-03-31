@@ -190,7 +190,8 @@ void  Webserv::init()
   std::cout << "Init servers..." << std::endl;
   for (std::vector<Server*>::iterator server = this->_servers.begin(); server != this->_servers.end(); ++server)
   {
-    (*server)->setDefault();
+    if (!(*server)->isset("listen"))
+      (*server)->set("listen", "80");
     this->initServer(*server);
     std::cout << **server << std::endl;
   }
@@ -252,8 +253,8 @@ void  Webserv::initSocket(std::string& host, int socket_fd) const
       address.sin_port = 0;
       if (bind(socket_fd, (struct sockaddr*)&address, sizeof(address)) < 0)
         this->throwError("Fail at binding socket to host.");
-      // Log le changement de port en utilisant getaddrinfo et en logant avec une classe dedie
-      std::cout << "An other port is used to listen socket_fd " << socket_fd << std::endl;
+      std::vector<std::string> host = Parser::getSocketInfo(socket_fd);
+      std::cout << "An other port is used to listen socket_fd " << socket_fd << " => " << host[1] << std::endl;
     } 
     else
       this->throwError("Fail at binding socket to host.");

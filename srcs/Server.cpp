@@ -15,10 +15,25 @@ Server::Server() : _ctx("./var/www"), _ctx_err("./var/error")
   _setters["allowed_method"] = &Server::setAllowedMethod;
   _setters["allow_listing"] = &Server::setAllowListing; 
   _setters["redirect"] = &Server::setRedirect;
+  _setters["server_name"] = &Server::setServerName;
 
   _getters["server_name"] = &Server::getServerName;
   _getters["listen"] = &Server::getListen;
   _getters["index"] = &Server::getIndex;
+
+  _cgi_env[0] = "REQUEST_METHOD";
+  _cgi_env[1] = "QUERY_STRING";
+  _cgi_env[2] = "CONTENT_TYPE";
+  _cgi_env[3] = "CONTENT_LENGTH";
+  _cgi_env[4] = "SCRIPT_FILENAME";
+  _cgi_env[5] = "SERVER_NAME";
+  _cgi_env[6] = "SERVER_PORT";
+  _cgi_env[7] = "REMOTE_ADDR";
+  _cgi_env[8] = "HTTP_COOKIE";
+  _cgi_env[9] = "PATH_INFO";
+  _cgi_env[10] = "HTTP_USER_AGENT";
+  _cgi_env[11] = "PHP_SELF";
+  _cgi_env[12] = "PYTHONPATH";
 
 }
 
@@ -78,12 +93,6 @@ std::string  Server::get(const std::string key) const
   return (this->*_getters.at(key))();
 }
 
-void  Server::setDefault()
-{
-  if (this->_listen.empty())
-    this->set("listen", "80");
-}
-
 std::vector<std::string>::iterator  Server::iterator(int pos)
 {
   if (pos < 0 || pos > (int)this->_listen.size())
@@ -108,7 +117,7 @@ void  Server::handle(Request& request)
   std::string body;
 
   if (!ext.compare(".php") || !ext.compare(".py"))
-    body = this->handleCgi();
+    body = this->handleCgi(ressource, request, location, ext);
   else 
     body = this->handleAction(ressource, request, location);
 
@@ -198,19 +207,135 @@ Location* Server::getLocation(const std::string& ressource)
 {
   for (std::map<std::string, Location*>::iterator it = this->_locations.begin(); it != this->_locations.end(); ++it)
   {
-    if (ressource.find(it->first) == 0 && it->first.compare("/") && (ressource.length() == it->first.length() || ressource[it->first.length() + 1] == '/'))
+    if (ressource.find(it->first) == 0 && it->first.compare("/") && (ressource.length() == it->first.length() || ressource[it->first.length()] == '/'))
       return it->second;
   }
   return this->_locations.at("/");
 }
 
-std::string Server::handleCgi()
+std::string Server::extractResponseCgi(int fd)
 {
-  std::cout << "Handle Cgi !" << std::endl;
-  // Fork
-  // Execve
-  // Waitpid
-  return "";
+  std::string response;
+  char buffer[2];
+  buffer[0] = '\0';
+  buffer[1] = '\0';
+  while (read(fd, buffer, 1) > 0)
+  {
+    response.append(buffer);
+  }
+  close(fd);
+  return response;
+}
+
+void  Server::deleteTabCgi(char** cgi_args)
+{
+  if (cgi_args)
+  {
+    for (size_t i = 0; cgi_args[i]; i++) 
+    {
+      if (cgi_args[i])
+        delete[] cgi_args[i];
+      cgi_args[i] = NULL;
+    }
+    delete[] cgi_args;
+  }
+  
+  cgi_args = NULL;
+}
+
+std::string Server::executeCgi(int fds[2][2], const char* cgi_path, char** cgi_args)
+{
+  int* req = fds[0];
+  int* res = fds[1];
+
+  pid_t pid = fork();
+  if (pid == 0)
+  {
+    close(req[1]);
+    close(res[0]);
+    dup2(req[0], 0);
+    dup2(res[1], 1);
+    close(req[0]);
+    close(res[1]);
+    execvp(cgi_path, cgi_args);
+  }
+  close(req[0]);
+  close(req[1]);
+  close(res[1]);
+  waitpid(pid, NULL, 0);
+  return (deleteTabCgi(cgi_args), extractResponseCgi(res[0])); 
+}
+
+void Server::setEnvCgi(const std::string& ressource, Request& request, bool is_php)
+{
+  std::vector<std::string> host = Parser::getSocketInfo(request.getSocket());
+  
+  setenv(this->_cgi_env[0].c_str(), request.getMethod().c_str(), 1); // PB
+  setenv(this->_cgi_env[1].c_str(), request.getQuery().c_str(), 1);
+  setenv(this->_cgi_env[2].c_str(), request.getContentType().c_str(), 1);
+  setenv(this->_cgi_env[3].c_str(), request.getContentLen().c_str(), 1);
+  setenv(this->_cgi_env[4].c_str(), ressource.c_str(), 1); // PB
+  setenv(this->_cgi_env[5].c_str(), this->get("server_name").c_str(), 1);
+  setenv(this->_cgi_env[6].c_str(), host[1].c_str(), 1);
+  setenv(this->_cgi_env[7].c_str(), host[0].c_str(), 1);
+  setenv(this->_cgi_env[8].c_str(), request.getCookie().c_str(), 1);
+  setenv(this->_cgi_env[9].c_str(), ressource.c_str(), 1); // PB
+  setenv(this->_cgi_env[10].c_str(), request.getUserAgent().c_str(), 1); // PB
+  if (is_php)
+    setenv("PHP_SELF", ressource.c_str(), 1);
+  else
+    setenv("PYTHONPATH", "/bin/python3.10", 1);
+}
+
+char** Server::constructArgsCgi(const std::string& ressource, const std::string& cgi_path)
+{
+  char** cgi_args = new char*[3];
+  bzero(cgi_args, 3);
+
+  cgi_args[0] = new char[cgi_path.length() + 1];
+  bzero(cgi_args[0], cgi_path.length() + 1);
+
+  for (size_t i = 0; cgi_path[i]; i++) 
+  {
+    cgi_args[0][i] = cgi_path[i];
+  }
+  cgi_args[0][cgi_path.length() + 1] = '\0';
+  
+  cgi_args[1] = new char[ressource.length() + 1];
+  bzero(cgi_args[1], ressource.length() + 1);
+  for (size_t i = 0; ressource[i]; i++) 
+  {
+    cgi_args[1][i] = ressource[i];
+  }
+  cgi_args[1][ressource.length() + 1] = '\0';
+  cgi_args[2] = NULL;
+  return cgi_args;
+}
+
+std::string Server::handleCgi(std::string& ressource, Request& request, Location* location, const std::string& ext)
+{
+  std::string cgi_path;
+  if (!ext.compare(".php"))
+    cgi_path = "/bin/php";
+  else
+    cgi_path = "/bin/python3";
+
+  char** cgi_args = NULL;
+  
+  setEnvCgi(ressource, request, !ext.compare(".php"));
+  cgi_args = constructArgsCgi(ressource, cgi_path);
+
+  int fds[2][2];
+
+  if (pipe(fds[0]) < 0)
+    return (handleError(AHttpMessage::INTERNAL_SERVER_ERROR, ressource, location), "");
+  
+  if (pipe(fds[1]) < 0)
+    return (close(fds[0][0]), close(fds[0][1]), handleError(AHttpMessage::INTERNAL_SERVER_ERROR, ressource, location), "");
+  
+  write(fds[0][1], request.getBody().c_str(), request.getBody().length());
+
+  return executeCgi(fds, cgi_path.c_str(), cgi_args);
 }
 
 std::string Server::handleAction(const std::string& ressource, Request& request, Location* location)
@@ -400,8 +525,6 @@ void  Server::setErrorPage(std::string& value)
 
 void  Server::setAllowedMethod(std::string& value)
 {
-  if (!Validator::validate("method", value))
-    Validator::throwError("Error in allowed_method instruction.");
   this->_locations.at("/")->set("allowed_method", value);
 }
 

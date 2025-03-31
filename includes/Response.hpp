@@ -24,6 +24,7 @@ public:
   std::string get() const;
   std::string get(const std::string& status) const;
   void generate(const std::string &fragment, Request &request);
+  void generate(const std::string &fragment);
   void clean();
 
   bool  getIsListing() const;
