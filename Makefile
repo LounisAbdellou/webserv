@@ -1,14 +1,12 @@
 CC = c++
 NAME = webserv
-CFLAGS = -Wall -Wextra -Werror -Iincludes -std=c++98 -MMD -g
+CFLAGS = -Wall -Wextra -Werror -Iincludes -std=c++98
 
 SRC_DIR = srcs
 OBJ_DIR = objs
 
 SRCS = $(addprefix $(SRC_DIR)/, main.cpp Webserv.cpp Parser.cpp Server.cpp Client.cpp Location.cpp Validator.cpp Request.cpp Response.cpp AHttpMessage.cpp)
 OBJS = $(SRCS:$(SRC_DIR)/%.cpp=$(OBJ_DIR)/%.o)
-
--include $(OBJS:%.o=%.d)
 
 all: $(NAME)
 

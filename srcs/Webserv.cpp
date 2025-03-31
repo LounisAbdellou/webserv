@@ -324,14 +324,16 @@ void  Webserv::run()
         if (events[i].events == EPOLLOUT && !client->isClose())
         {
           Server* server = this->_sockets[client->getServerFd()]->front();
-          server->handle(client->getRequest());
-          if (server->send(events[i].data.fd))
+					if (!server->isset("response"))
+						server->handle(client->getRequest());
+					int return_value = server->send(events[i].data.fd);
+          if (return_value == 1)
           {
             events[i].events = EPOLLIN;
             if (epoll_ctl(this->_epoll_fd, EPOLL_CTL_MOD, events[i].data.fd, &events[i]) == -1)
               this->throwError("Epoll mod failed");
           }
-          else
+          else if (return_value == -1)
             client->setIsClose(true);
         }
 

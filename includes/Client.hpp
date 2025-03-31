@@ -1,7 +1,7 @@
 #ifndef CLIENT_HPP
 #define CLIENT_HPP
 
-#define BUFFER_SIZE 1024
+#define BUFFER_SIZE 4096
 
 #include "Request.hpp"
 
