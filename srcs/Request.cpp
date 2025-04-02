@@ -121,7 +121,7 @@ bool Request::setPath(std::string &path) {
 
   size_t pos = path.find_first_of('?');
   if (pos != std::string::npos) {
-    this->_query = path.substr(pos, path.size() - pos);
+    this->_query = path.substr(pos + 1, path.size() - (pos + 1));
     path.erase(pos, path.size() - pos);
   }
 

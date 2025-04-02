@@ -101,12 +101,14 @@ void Server::handle(Request &request) {
   std::string ext = Parser::getExtension(ressource);
   std::string body;
 
-  if (!ext.compare(".php") || !ext.compare(".py"))
+  if (!ext.compare(".php") || !ext.compare(".py")) {
     body = this->handleCgi(ressource, request, location, ext);
-  else 
+		this->_response.generate(body);
+	} else {
     body = this->handleAction(ressource, request, location);
+		this->_response.generate(body, request);
+	}
 
-  this->_response.generate(body, request);
   request.clean();
 }
 
@@ -249,6 +251,7 @@ void Server::setEnvCgi(const std::string& ressource, Request& request, bool is_p
   setenv(this->_cgi_env[8].c_str(), request.getCookie().c_str(), 1);
   setenv(this->_cgi_env[9].c_str(), ressource.c_str(), 1); // PB
   setenv(this->_cgi_env[10].c_str(), request.getUserAgent().c_str(), 1); // PB
+	setenv("REDIRECT_STATUS", "CGI", 1);
   if (is_php)
     setenv("PHP_SELF", ressource.c_str(), 1);
   else
@@ -259,7 +262,7 @@ std::string Server::handleCgi(std::string& ressource, Request& request, Location
 {
   std::string cgi_path;
   if (!ext.compare(".php"))
-    cgi_path = "/bin/php";
+    cgi_path = "/bin/php-cgi";
   else
     cgi_path = "/bin/python3";
 
