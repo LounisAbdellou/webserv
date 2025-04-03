@@ -3,6 +3,7 @@
 
 #include "AHttpMessage.hpp"
 #include <map>
+#include <vector>
 
 class Request : public AHttpMessage {
 public:
@@ -27,6 +28,7 @@ public:
   std::string getContentLength() const;
   std::string getQuery() const;
   Status getStatus() const;
+  std::string getParams() const;
 
   void set(const std::string &key, const std::string &value);
   void setStatus(Request::Status status);
@@ -45,6 +47,8 @@ private:
   std::string _contentType;
   std::string _userAgent;
   std::string _query;
+  std::string _params;
+  std::string _cookies;
 
   bool _isBinary;
   bool _isChucked;
@@ -63,6 +67,9 @@ private:
   void setIsChucked(const std::string &transferEncoding);
   void setContentType(const std::string &contentType);
   void setUserAgent(const std::string &userAgent);
+  void setIsBinary(const std::string &contentType);
+  void setCookies(const std::string &cookies);
+  void setParams(const std::string &params);
   bool setMethod(std::string &method);
   bool setPath(std::string &path);
   bool setProtocol(std::string &protocol);
