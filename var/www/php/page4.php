@@ -4,11 +4,6 @@ header("HTTP 200 OK");
 // Démarrer la session
 session_start();
 
-// Modifier les cookies
-setcookie("fontWeight", "normal", time() + 3600, "/");
-setcookie("backgroundColor", "white", time() + 3600, "/");
-setcookie("color", "black", time() + 3600, "/");
-
 // Mettre à jour la session
 $_SESSION["message"] = "Les cookies ont été mis à jour!";
 
@@ -26,9 +21,14 @@ $html = "<!DOCTYPE html>
     </style>
 </head>
 <body>
-    <h1>message => " . $_SESSION["message"] . "</h1>
-    <p>Les valeurs des cookies ont été mises à jour.</p>
-    <a href=\"page4.php\">Aller à la page 4</a>
+    <h1>Page 4</h1>
+    <p>Les valeurs des cookies sont :</p>
+    <ul>
+        <li>Poids de la police : " . $_COOKIE["fontWeight"] . "</li>
+        <li>Couleur de fond : " . $_COOKIE["backgroundColor"] . "</li>
+        <li>Couleur du texte : " . $_COOKIE["color"] . "</li>
+    </ul>
+    <a href=\"index.php\">Retour à la page d'accueil</a>
 </body>
 </html>";
 
