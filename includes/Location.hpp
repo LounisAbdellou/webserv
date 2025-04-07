@@ -1,10 +1,8 @@
 #ifndef __LOCATION__
 #define __LOCATION__
 
-#include <iostream>
-#include <string>
-#include <vector>
-#include <map>
+#include "Header.hpp"
+
 #include "Validator.hpp"
   
 
@@ -13,12 +11,12 @@ class Location {
     Location();
     ~Location();
     
-    bool                                      has(const std::string key) const;
-    void                                      set(const std::string key, const std::string value);
-    bool                                      isset(const std::string key) const;
-    bool                                      isset(const std::string container, const std::string key) const;
-    std::string                               get(const std::string key) const;
-    std::string                               get(const std::string container, const std::string key) const;
+    bool                                                      has(const std::string key) const;
+    void                                                      set(const std::string key, const std::string value);
+    bool                                                      isset(const std::string key) const;
+    bool                                                      isset(const std::string container, const std::string key) const;
+    std::string                                               get(const std::string key) const;
+    std::string                                               get(const std::string container, const std::string key) const;
 
   private:
     Location(const Location& cpy);

@@ -1,10 +1,8 @@
 #ifndef __VALIDATOR__
 #define __VALIDATOR__
 
-#include <iostream>
-#include <fstream> 
-#include <string>
-#include <map>
+#include "Header.hpp"
+
 #include <algorithm>
 #include <locale>
 #include <cstdlib>
