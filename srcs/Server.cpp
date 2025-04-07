@@ -1,25 +1,10 @@
 #include "Server.hpp"
 
-Server::Server() : _ctx("./var/www"), _ctx_err("./var/error") {
-  Location *default_location = new Location;
-  default_location->set("key", "/");
-  _locations["/"] = default_location;
-
-  _setters["listen"] = &Server::setListen;
-  _setters["server_name"] = &Server::setServerName;
-
-  _setters["root"] = &Server::setRoot;
-  _setters["index"] = &Server::setIndex;
-  _setters["error_page"] = &Server::setErrorPage;
-  _setters["allowed_method"] = &Server::setAllowedMethod;
-  _setters["allow_listing"] = &Server::setAllowListing;
-  _setters["redirect"] = &Server::setRedirect;
-  _setters["server_name"] = &Server::setServerName;
-
-  _getters["server_name"] = &Server::getServerName;
-  _getters["listen"] = &Server::getListen;
-  _getters["index"] = &Server::getIndex;
-  _getters["response"] = &Server::getResponse;
+Server::Server() : _ctx("./var/www"), _ctx_err("./var/error") 
+{
+  Location *location = new Location;
+  location->set("key", "/");
+  _locations["/"] = location;
 
   _cgi_env[0] = "REQUEST_METHOD";
   _cgi_env[1] = "QUERY_STRING";
@@ -34,13 +19,16 @@ Server::Server() : _ctx("./var/www"), _ctx_err("./var/error") {
   _cgi_env[10] = "HTTP_USER_AGENT";
   _cgi_env[11] = "PHP_SELF";
   _cgi_env[12] = "PYTHONPATH";
+
+  this->init();
 }
 
 Server::Server(const Server &cpy) { (void)cpy; }
 
 Server &Server::operator=(Server &cpy) { return cpy; }
 
-Server::~Server() {
+Server::~Server() 
+{
   for (std::map<std::string, Location *>::iterator it =
            this->_locations.begin();
        it != this->_locations.end(); ++it) {
@@ -49,8 +37,8 @@ Server::~Server() {
   }
 }
 
-std::ostream &operator<<(std::ostream &cout, const Server &server) {
-  (void)server;
+std::ostream &operator<<(std::ostream &cout, const Server &server) 
+{
   cout << "Server up and listenning at : " << std::endl;
   for (std::vector<std::string>::const_iterator it = server.iterator(0);
        it != server.iterator(-1); ++it) {
@@ -59,25 +47,55 @@ std::ostream &operator<<(std::ostream &cout, const Server &server) {
   return cout;
 }
 
-bool Server::has(const std::string key) const {
-  return !(this->_setters.find(key) == this->_setters.end());
+void  Server::init()
+{
+  _setters["listen"] = &Server::setListen;
+  _setters["server_name"] = &Server::setServerName;
+  _setters["root"] = &Server::setRoot;
+  _setters["index"] = &Server::setIndex;
+  _setters["error_page"] = &Server::setErrorPage;
+  _setters["allowed_method"] = &Server::setAllowedMethod;
+  _setters["allow_listing"] = &Server::setAllowListing;
+  _setters["redirect"] = &Server::setRedirect;
+  _setters["server_name"] = &Server::setServerName;
+
+  _getters["server_name"] = &Server::getServerName;
+  _getters["listen"] = &Server::getListen;
+  _getters["index"] = &Server::getIndex;
 }
 
-void Server::set(const std::string key, std::string value) {
+void Server::set(const std::string key, const std::string value) 
+{
+  if (this->_setters.find(key) == this->_setters.end()) return ;
   (this->*_setters[key])(value);
 }
 
-bool Server::set(const std::string key, Location *location) {
-  if (this->_locations.find(key) != this->_locations.end())
-    return false;
-  this->_locations[key] = location;
-  return true;
+bool Server::has(const std::string key) const 
+{
+  return !(this->_setters.find(key) == this->_setters.end());
 }
 
-std::string Server::get(const std::string key) const {
+bool Server::isset(const std::string key) const 
+{
+  if (this->_getters.find(key) == this->_getters.end())
+    return false;
+  return (!(this->*_getters.at(key))().empty());
+}
+
+std::string Server::get(const std::string key) const 
+{
   if (this->_getters.find(key) == this->_getters.end())
     return "";
   return (this->*_getters.at(key))();
+}
+
+bool Server::set(const std::string key, Location *location) 
+{
+  if (this->_locations.find(key) != this->_locations.end())
+    return false;
+  location->set("key", key);
+  this->_locations[key] = location;
+  return true;
 }
 
 std::vector<std::string>::iterator  Server::iterator(int pos)
@@ -91,45 +109,62 @@ std::vector<std::string>::iterator  Server::iterator(int pos)
   return it;
 }
 
-void Server::handle(Request &request) {
-  std::string ressource = request.getPath();
+std::vector<std::string>::const_iterator Server::iterator(int pos) const 
+{
+  if (pos < 0 || pos > (int)this->_listen.size())
+    return this->_listen.end();
+  std::vector<std::string>::const_iterator it = this->_listen.begin();
+  for (int i = 0; i < pos; i++) {
+    it++;
+  }
+  return it;
+}
 
+std::string Server::handle(const std::string& path, Request& request, Response& response) 
+{
+  std::string ressource = path;
+  std::string code = this->handleRessource(ressource, request, response);
+  
+  if (request.get("type").compare("PIPE"))
+    this->setContentLength(ressource, request, response);
+  response.set("header", code);
+
+  return ressource;
+}
+
+std::string Server::handleRessource(std::string& ressource, Request& request, Response& response)
+{
   Location *location = this->getLocation(ressource);
 
-  this->handlePath(ressource, request, location);
+  if (request.isset("error"))
+    return this->handleError("400", ressource, location);
 
-  std::string ext = Parser::getExtension(ressource);
-  std::string body;
+  if (!location->isset("allowed_method", request.get("method")))
+    return this->handleError("405", ressource, location);
 
-  if (!ext.compare(".php") || !ext.compare(".py"))
-    body = this->handleCgi(ressource, request, location, ext);
-  else 
-    body = this->handleAction(ressource, request, location);
-
-  this->_response.generate(body, request);
-  request.clean();
-}
-
-void Server::handlePath(std::string &ressource, Request &request,
-                        Location *location) {
-  if (request.getStatus() == Request::E_REQUEST_BAD)
-    return this->handleError(request.getResponseCode(), ressource, location);
-
+  if (location->isset("redirect"))
+  {
+    response.add("Location", location->get("redirect", "url"));
+    return location->get("redirect", "code");
+  }
+  
   this->addPathRoot(ressource, location);
 
-  if (this->checkPathType(request.getMethod(), ressource, location))
+  if (this->checkPathType(request, ressource, location))
     this->addPathIndex(ressource, location);
 
-  if (access(Parser::getFolder(ressource).c_str(), F_OK) == -1 ||
-      (access(ressource.c_str(), F_OK) == -1 &&
-       request.getMethod().compare("POST")))
-    return this->handleError(AHttpMessage::NOT_FOUND, ressource, location);
+  if (access(Parser::getFolder(ressource).c_str(), F_OK) == -1 || 
+    (access(ressource.c_str(), F_OK) == -1 && request.get("method").compare("POST")))
+    return this->handleError("404", ressource, location);
 
-  if (!this->checkPathAccess(request.getMethod(), ressource))
-    return this->handleError(AHttpMessage::FORBIDDEN, ressource, location);
+  if (!this->checkPathAccess(request.get("method"), ressource))
+    return this->handleError("403", ressource, location);
+
+  return "200";
 }
 
-bool Server::checkPathAccess(std::string method, std::string &ressource) {
+bool Server::checkPathAccess(std::string method, std::string &ressource) 
+{
   if (!method.compare("GET") && access(ressource.c_str(), R_OK) == -1)
     return false;
 
@@ -143,9 +178,9 @@ bool Server::checkPathAccess(std::string method, std::string &ressource) {
   return true;
 }
 
-bool Server::checkPathType(std::string method, std::string &ressource,
-                           Location *location) {
-  bool allowed = location->isset("allow_listing");
+bool Server::checkPathType(Request& request, std::string &ressource, Location *location) 
+{
+  std::string method = request.get("method");
   struct stat sb;
   if (stat(ressource.c_str(), &sb) == -1)
     return false;
@@ -153,14 +188,16 @@ bool Server::checkPathType(std::string method, std::string &ressource,
     return false;
   if (!method.compare("DELETE"))
     return false;
-  if (!method.compare("GET") && allowed) {
-    this->_response.setIsListing(true);
+  if (!method.compare("GET") && location->isset("allow_listing"))
+  {
+    request.set(Request::E_REQUEST_LIST);
     return false;
   }
   return true;
 }
 
-void Server::addPathRoot(std::string &ressource, Location *location) {
+void Server::addPathRoot(std::string &ressource, Location *location) 
+{
   std::string pattern = location->get("key");
   if (pattern.compare("/")) {
     if (location->isset("root"))
@@ -176,7 +213,8 @@ void Server::addPathRoot(std::string &ressource, Location *location) {
   ressource.insert(0, this->_ctx);
 }
 
-void Server::addPathIndex(std::string &ressource, Location *location) {
+void Server::addPathIndex(std::string &ressource, Location *location) 
+{
   if (ressource[ressource.length() - 1] != '/')
     ressource.append("/");
   if (location->isset("index"))
@@ -185,196 +223,54 @@ void Server::addPathIndex(std::string &ressource, Location *location) {
     ressource.append(this->get("index"));
 }
 
-Location* Server::getLocation(const std::string& ressource)
+void Server::setContentLength(const std::string& ressource, Request& request, Response& response) const
 {
-  for (std::map<std::string, Location*>::iterator it = this->_locations.begin(); it != this->_locations.end(); ++it)
+  if (request.get("method").compare("GET"))
   {
-    if (ressource.find(it->first) == 0 && it->first.compare("/") && (ressource.length() == it->first.length() || ressource[it->first.length()] == '/'))
-      return it->second;
+    response.add("Content-Length", "0");
+    return;
   }
-  return this->_locations.at("/");
+  response.set(Response::E_RESPONSE_DOC);
+  std::ifstream target(ressource.c_str(), std::ios::binary);
+  target.seekg(0, std::ios::end);
+  int content_length = target.tellg();
+  target.close();
+  response.bsend(content_length);
+  response.add("Content-Length", Parser::to_string(content_length));
 }
 
-std::string Server::extractResponseCgi(int fd)
+std::string Server::handleError(std::string code, std::string& ressource, Location *location) 
 {
-  std::string response;
-  char buffer[2];
-  buffer[0] = '\0';
-  buffer[1] = '\0';
-  while (read(fd, buffer, 1) > 0)
-  {
-    response.append(buffer);
+  if (location->isset("error_page"))
+    ressource = location->get("error_page", code);
+
+  if (ressource[0] != '/')
+    ressource.insert(0, "/");
+
+  ressource.insert(0, this->_ctx_err);
+
+  struct stat sb;
+  if (stat(ressource.c_str(), &sb) == -1 || S_ISDIR(sb.st_mode) ||
+      access(ressource.c_str(), R_OK) == -1) {
+    ressource = this->_ctx_err.substr(0);
+    ressource.append("/error.html");
   }
-  close(fd);
-  return response;
+  return code;
 }
 
-std::string Server::executeCgi(int fds[2][2], const std::string& cgi_path, const std::string& ressource)
+void  Server::execute(const std::string& ressource, Request& request, Response& response)
 {
-  int* req = fds[0];
-  int* res = fds[1];
-
-	const char *args[] = {cgi_path.c_str(), ressource.c_str(), NULL};
-
-  pid_t pid = fork();
-  if (pid == 0)
-  {
-    close(req[1]);
-    close(res[0]);
-    dup2(req[0], 0);
-    dup2(res[1], 1);
-    close(req[0]);
-    close(res[1]);
-    execvp(cgi_path.c_str(), (char**)args);
-  }
-  close(req[0]);
-  close(req[1]);
-  close(res[1]);
-  waitpid(pid, NULL, 0);
-  return (extractResponseCgi(res[0])); 
+  response.set(Response::E_RESPONSE_PIPE);
+  if (request.isset("list"))
+    return this->listing(ressource, response);
+  return this->cgi(ressource, request, response);
 }
 
-void Server::setEnvCgi(const std::string& ressource, Request& request, bool is_php)
+void  Server::listing(const std::string& ressource, Response& response)
 {
-  std::vector<std::string> host = Parser::getSocketInfo(request.getSocket());
-  
-  setenv(this->_cgi_env[0].c_str(), request.getMethod().c_str(), 1); // PB
-  setenv(this->_cgi_env[1].c_str(), request.getQuery().c_str(), 1);
-  setenv(this->_cgi_env[2].c_str(), request.getContentType().c_str(), 1);
-  setenv(this->_cgi_env[3].c_str(), request.getContentLength().c_str(), 1);
-  setenv(this->_cgi_env[4].c_str(), ressource.c_str(), 1); // PB
-  setenv(this->_cgi_env[5].c_str(), this->get("server_name").c_str(), 1);
-  setenv(this->_cgi_env[6].c_str(), host[1].c_str(), 1);
-  setenv(this->_cgi_env[7].c_str(), host[0].c_str(), 1);
-  setenv(this->_cgi_env[8].c_str(), request.getCookie().c_str(), 1);
-  setenv(this->_cgi_env[9].c_str(), ressource.c_str(), 1); // PB
-  setenv(this->_cgi_env[10].c_str(), request.getUserAgent().c_str(), 1); // PB
-  if (is_php)
-    setenv("PHP_SELF", ressource.c_str(), 1);
-  else
-    setenv("PYTHONPATH", "/bin/python3.10", 1);
-}
-
-std::string Server::handleCgi(std::string& ressource, Request& request, Location* location, const std::string& ext)
-{
-  std::string cgi_path;
-  if (!ext.compare(".php"))
-    cgi_path = "/bin/php";
-  else
-    cgi_path = "/bin/python3";
-
-  setEnvCgi(ressource, request, !ext.compare(".php"));
-
-  int fds[2][2];
-
-  if (pipe(fds[0]) < 0)
-    return (handleError(AHttpMessage::INTERNAL_SERVER_ERROR, ressource, location), "");
-  
-  if (pipe(fds[1]) < 0)
-    return (close(fds[0][0]), close(fds[0][1]), handleError(AHttpMessage::INTERNAL_SERVER_ERROR, ressource, location), "");
-  
-  write(fds[0][1], request.getBody().c_str(), request.getBody().length());
-
-  return executeCgi(fds, cgi_path, ressource);
-}
-
-std::string Server::handleAction(const std::string &ressource, Request &request,
-                                 Location *location) {
-  std::string method = request.getMethod();
-  if (location->isset("redirect"))
-    return this->handleRedirect(location);
-  if (!location->isset("allowed_method", method)) {
-    std::string err = ressource;
-    this->handleError(AHttpMessage::NOT_ALLOWED, err, location);
-    return this->handleGet(err, location);
-  }
-  if (!method.compare("GET"))
-    return this->handleGet(ressource, location);
-  if (!method.compare("DELETE"))
-    return this->handleDelete(ressource, location);
-  if (!method.compare("POST"))
-    return this->handlePost(ressource, request, location);
-
-  return "";
-}
-
-std::string Server::handleGet(const std::string &path, Location *location) {
-  std::ifstream file;
-	std::string totalContent = "";
-  std::string extension = Parser::getExtension(path);
-
-  if (location->isset("allow_listing") && this->_response.getIsListing())
-    return this->handleListing(path);
-
-  file.open(path.c_str());
-
-  if (!file) {
-    return "";
-  }
-
-  char buffer[BUFFER_SIZE];
-  while (true) {	
-		int bytes = file.readsome(buffer, BUFFER_SIZE);
-		if (bytes <= 0) {
-			break;
-		}
-
-		std::string content(buffer, bytes);
-		totalContent += content;
-  }
-
-  file.close();
-  return totalContent;
-}
-
-std::string Server::handleDelete(const std::string &path, Location *location) {
-  if (this->_response.getResponseCode().compare("200 OK") ||
-      std::remove(path.c_str()) == -1) {
-    std::string ressource = path;
-    this->handleError(this->_response.getResponseCode(), ressource, location);
-    return this->handleGet(ressource, location);
-  }
-  return "";
-}
-
-std::string Server::handlePost(const std::string &path, const Request &request,
-                               Location *location) {
-  std::ofstream file;
-  std::string body = request.getBody();
-
-  if (request.getIsBinary())
-    file.open(path.c_str(), std::ios::binary);
-  else
-    file.open(path.c_str());
-
-  if (!file.is_open() || this->_response.getResponseCode().compare("200 OK")) {
-    std::string ressource = path;
-    this->handleError(this->_response.getResponseCode(), ressource, location);
-    return this->handleGet(ressource, location);
-  }
-
-  file.write(body.c_str(), body.size());
-  file.close();
-
-  return "";
-}
-
-std::string Server::handleRedirect(Location *location) {
-  std::string code = this->_response.get(location->get("redirect", "code"));
-
-  this->_response.setResponseCode(code);
-
-  this->_response.setIsRedirect(true);
-
-  this->_response.setAttribute("Location", location->get("redirect", "url"));
-
-  return "";
-}
-
-std::string Server::handleListing(const std::string &path) {
   Entry entry;
   std::vector<struct Entry> entries;
-  DIR *dir = opendir(path.c_str());
+  DIR *dir = opendir(ressource.c_str());
   struct dirent *dir_entry = readdir(dir);
   ;
 
@@ -392,130 +288,199 @@ std::string Server::handleListing(const std::string &path) {
 
   closedir(dir);
 
-  return Parser::getListingHtml(entries, path);
+  std::string listing = Parser::getListingHtml(entries, ressource);
+
+  int* res = response.pipe("open");
+  
+  ::write(res[1], listing.c_str(), listing.length());
+  
+  response.bsend(listing.length());
+
+  response.add("Content-Length", Parser::to_string(response.bsend()));
+
 }
 
-void Server::handleError(std::string code, std::string &ressource,
-                         Location *location) {
-  this->_response.setResponseCode(code);
-
-  if (location->isset("error_page"))
-    ressource = location->get("error_page", code);
-
-  if (ressource[0] != '/')
-    ressource.insert(0, "/");
-
-  ressource.insert(0, this->_ctx_err);
-
-  struct stat sb;
-  if (stat(ressource.c_str(), &sb) == -1 || S_ISDIR(sb.st_mode) ||
-      access(ressource.c_str(), R_OK) == -1) {
-    ressource = this->_ctx_err.substr(0);
-    ressource.append("/error.html");
+std::string Server::setCgi(const std::string& ressource, Request& request, bool is_php)
+{
+  std::vector<std::string> host = Parser::getSocketInfo(request.socket());
+  
+  setenv(this->_cgi_env[0].c_str(), request.get("method").c_str(), 1); // PB
+  setenv(this->_cgi_env[1].c_str(), request.get("query").c_str(), 1);
+  setenv(this->_cgi_env[2].c_str(), request.get("args", "Content-Type").c_str(), 1);
+  setenv(this->_cgi_env[3].c_str(), request.get("args", "Content-Length").c_str(), 1);
+  setenv(this->_cgi_env[4].c_str(), ressource.c_str(), 1); // PB
+  setenv(this->_cgi_env[5].c_str(), this->get("server_name").c_str(), 1);
+  setenv(this->_cgi_env[6].c_str(), host[1].c_str(), 1);
+  setenv(this->_cgi_env[7].c_str(), host[0].c_str(), 1);
+  setenv(this->_cgi_env[8].c_str(), request.get("args", "Cookie").c_str(), 1);
+  setenv(this->_cgi_env[9].c_str(), ressource.c_str(), 1); // PB
+  setenv(this->_cgi_env[10].c_str(), request.get("args", "User-Agent").c_str(), 1); // PB
+  if (is_php)
+  {
+    setenv("REDIRECT_STATUS", "200", 1);
+    setenv("PHP_SELF", ressource.c_str(), 1);
+    return "/bin/php-cgi";
   }
+  
+  setenv("PYTHONPATH", "/bin/python3.10", 1);
+  return "/bin/python3";
 }
 
-int Server::send(int fd) {
-  std::string response = this->_response.get();
-  ssize_t bsend = ::send(fd, response.c_str(), response.length(), MSG_NOSIGNAL);
+void  Server::cgi(const std::string& ressource, Request& request, Response& response)
+{
+  std::string cgi = this->setCgi(ressource, request, !Parser::getExtension(ressource).compare(".php"));
 
-  if (bsend == -1) {
-    return -1;
+  int* req = request.pipe("open");
+  int* res = response.pipe("open");
+  int inter[] = { -1, -1 }; 
+
+  const char *args[] = {cgi.c_str(), ressource.c_str(), NULL};
+  
+  pipe(inter);
+  pid_t pid = fork();
+  if (pid == 0)
+  {
+    dup2(req[0], 0);
+    dup2(inter[1], 1);
+    request.pipe("close");
+    response.pipe("close");
+    close(inter[0]);
+    close(inter[1]);
+    execvp(cgi.c_str(), (char**)args);
+  }
+  request.pipe("close");
+  close(inter[1]);
+  waitpid(pid, NULL, 0);
+  
+  char buffer[BUFFER_SIZE + 1];
+  
+  ::bzero(buffer, BUFFER_SIZE + 1);
+
+  int offset = 0;
+  
+  if (!Parser::getExtension(ressource).compare(".php"))
+  {
+    ::read(inter[0], buffer, BUFFER_SIZE);
+
+    std::string str = buffer;
+
+    if (str.find("\r\n\r\n") != std::string::npos)
+      offset = str.find("\r\n\r\n") + 4;
+    
+    response.bsend(::write(res[1], buffer, ::strlen(buffer)));
+    
+    ::bzero(buffer, BUFFER_SIZE + 1);
   }
 
-  if (bsend - response.size() == 0) {
-    this->_response.clean();
-    return 1;
+  while (::read(inter[0], buffer, BUFFER_SIZE))
+  {
+    response.bsend(::write(res[1], buffer, ::strlen(buffer)));
+    ::bzero(buffer, BUFFER_SIZE + 1);
   }
-
-  this->_response.erase(bsend);
-
-  return 0;
+  response.add("Content-Length", Parser::to_string(response.bsend() - offset));
+  response.set(Response::E_RESPONSE_CGI);
+  close(inter[0]);
 }
 
-std::vector<std::string>::const_iterator Server::iterator(int pos) const {
-  if (pos < 0 || pos > (int)this->_listen.size())
-    return this->_listen.end();
-  std::vector<std::string>::const_iterator it = this->_listen.begin();
-  for (int i = 0; i < pos; i++) {
-    it++;
-  }
-  return it;
-}
-
-bool Server::isset(const std::string key) const {
-  if (this->_getters.find(key) == this->_getters.end())
-    return false;
-  return (!(this->*_getters.at(key))().empty());
-}
-
-void Server::setListen(std::string &value) {
-  if (!Validator::validate("listen", value))
+void Server::setListen(const std::string &value) 
+{
+  std::string listen = value;
+  if (!Validator::validate("listen", listen))
     Validator::throwError("Invalid couple 'ip:port'.");
-  if (std::find(this->_listen.begin(), this->_listen.end(), value) !=
+  if (std::find(this->_listen.begin(), this->_listen.end(), listen) !=
       this->_listen.end())
     Validator::throwError("This couple 'ip:port' already exist");
-  this->_listen.push_back(value);
+  this->_listen.push_back(listen);
 }
 
-void Server::setServerName(std::string &value) { this->_server_name = value; }
 
-void Server::setRoot(std::string &value) {
+void Server::setServerName(const std::string &value) 
+{ 
+  this->_server_name = value; 
+}
+
+void Server::setRoot(const std::string &value) 
+{
   this->_locations.at("/")->set("root", value);
 }
 
-void Server::setIndex(std::string &value) {
-  if (!Validator::validate("file", value))
+void Server::setIndex(const std::string &value) 
+{
+  std::string path = value;
+  if (!Validator::validate("file", path))
     Validator::throwError("Invalid file for index.");
   this->_locations.at("/")->set("index", value);
 }
 
-void Server::setErrorPage(std::string &value) {
-  if (!Validator::validate("file", value))
+void Server::setErrorPage(const std::string &value) 
+{
+  std::string path = value;
+  if (!Validator::validate("file", path))
     Validator::throwError("Error in error_page instruction.");
   this->_locations.at("/")->set("error_page", value);
 }
 
-void  Server::setAllowedMethod(std::string& value)
+void  Server::setAllowedMethod(const std::string& value)
 {
   this->_locations.at("/")->set("allowed_method", value);
 }
 
-void Server::setAllowListing(std::string &value) {
+void Server::setAllowListing(const std::string &value) 
+{
   this->_locations.at("/")->set("allow_listing", value);
 }
 
-void Server::setRedirect(std::string &value) {
+void Server::setRedirect(const std::string &value) 
+{
   this->_locations.at("/")->set("redirect", value);
 }
 
-std::string Server::getServerName() const { return this->_server_name; }
+Location* Server::getLocation(const std::string& ressource)
+{
+  for (std::map<std::string, Location*>::iterator it = this->_locations.begin(); it != this->_locations.end(); ++it)
+  {
+    if (ressource.find(it->first) == 0 && it->first.compare("/") && (ressource.length() == it->first.length() || ressource[it->first.length()] == '/'))
+      return it->second;
+  }
+  return this->_locations.at("/");
+}
 
-std::string Server::getListen() const { return this->_listen[0]; }
+std::string Server::getServerName() const 
+{ 
+  return this->_server_name; 
+}
 
-std::string Server::getIndex() const {
+std::string Server::getListen() const 
+{ 
+  return this->_listen[0]; 
+}
+
+std::string Server::getIndex() const 
+{
   return this->_locations.at("/")->get("index");
 }
 
-std::string Server::getRoot() const {
+std::string Server::getRoot() const 
+{
   return this->_locations.at("/")->get("root");
 }
 
-std::string Server::getAllowedMethod() const {
+std::string Server::getAllowedMethod() const 
+{
   return this->_locations.at("/")->get("allowed_method");
 }
 
-std::string Server::getAllowListing() const {
+std::string Server::getAllowListing() const 
+{
   return this->_locations.at("/")->get("allow_listing");
 }
 
-std::string Server::getRedirect() const {
+std::string Server::getRedirect() const 
+{
   return this->_locations.at("/")->get("redirect");
 }
 
-std::string Server::getResponse() const { return this->_response.getMessage(); }
-
-std::string Server::getErrorPage() const {
+std::string Server::getErrorPage() const 
+{
   return this->_locations.at("/")->get("error_page");
 }
-

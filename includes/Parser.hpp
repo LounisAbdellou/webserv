@@ -1,11 +1,8 @@
 #ifndef __PARSER__
 #define __PARSER__
 
-#include <iostream>
-#include <fstream> 
-#include <string>
-#include <map>
-#include <vector>
+#include "Header.hpp"
+
 #include <sstream>
 #include <algorithm>
 #include <stdexcept>

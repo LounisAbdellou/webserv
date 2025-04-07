@@ -7,9 +7,6 @@ import cgitb
 # Activer les rapports d'erreurs CGI
 cgitb.enable()
 
-print("Content-Type: text/html")
-print()
-
 print("<h1>Variables d'environnement CGI (Python)</h1>")
 print("<pre>")
 for key, value in os.environ.items():
