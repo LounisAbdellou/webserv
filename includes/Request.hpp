@@ -16,16 +16,16 @@ public:
     E_REQUEST_CREATED = 0,
     E_REQUEST_HEADER = 1,
     E_REQUEST_ARGS = 2,
-    E_REQUEST_COMPLETE = 3,
-    E_REQUEST_BAD = 4,
+    E_REQUEST_BODY = 3,
+    E_REQUEST_COMPLETE = 4,
+    E_REQUEST_BAD = 5,
   };
   
   enum Type {
     E_REQUEST_OTHER = 0,
-    E_REQUEST_POST = 1,
-    E_REQUEST_CHUNK = 2,
+    E_REQUEST_LIST = 1,
+    E_REQUEST_POST = 2,
     E_REQUEST_CGI = 3,
-    E_REQUEST_CGI_CHUNK = 4,
   };
 
   void                                            init();
@@ -60,6 +60,7 @@ private:
   std::string                                     _path;
   std::string                                     _query;
   std::string                                     _protocol;
+  std::string                                     _chunked;
   std::map<std::string, std::string>              _args;
 
   bool                                            update();
@@ -74,6 +75,7 @@ private:
   void                                            setArgs(std::string& value);
   void                                            setSize(std::string& value);
   void                                            setPipe(std::string& value);
+  void                                            setChunk(std::string& value);
 
   std::string                                     getMethod() const;
   std::string                                     getPath() const;
@@ -84,6 +86,7 @@ private:
   std::string                                     getError() const;
   std::string                                     getType() const;
   std::string                                     getChunk() const;
+  std::string                                     getFile() const;
 
 };
 

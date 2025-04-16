@@ -52,6 +52,7 @@ bool  Client::receive()
   /*std::cout << "Frag - " << bread << "\n" << this->_buffer << std::endl;*/
   /*if (bread == 0)*/
     /*return this->_request.isset("ready");*/
+  /*std::cout << "RECEIVE" << std::endl;*/
 
   this->_buffer[bread] = '\0';
   this->_request.parse(this->_buffer, bread);
@@ -84,13 +85,12 @@ bool  Client::send()
     content.append(this->read());
   }
 
-
+  std::cout << "content :\n" << content << std::endl;
   ssize_t bwrite = ::send(this->_socket, content.c_str(), content.length(), MSG_NOSIGNAL);
 
   if (bwrite == -1)
     throw Parser::WebservParseException("");
 
-  /*while (true);*/
   this->_response.bsend((bwrite - offset) * -1);
 
   ::bzero(this->_buffer, BUFFER_SIZE + 1);
@@ -104,8 +104,14 @@ int   Client::write(char* buffer, size_t bytes)
 
   if (!this->_request.get("type").compare("DOC"))
   {
+    if (!this->_request.isset("file"))
+    {
+      this->remove();
+      this->_request.set(Request::E_REQUEST_BODY);
+    }
+    
     std::ofstream target(this->_ressource.c_str(), std::ios::app | std::ios::binary);
-
+    
     target.write(buffer, bytes);
 
     target.close();

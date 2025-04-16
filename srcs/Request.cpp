@@ -24,6 +24,7 @@ void  Request::init()
   _setters["args"] = &Request::setArgs;
   _setters["size"] = &Request::setSize;
   _setters["pipe"] = &Request::setPipe;
+  _setters["chunk"] = &Request::setChunk;
   
   _getters["method"] = &Request::getMethod;
   _getters["path"] = &Request::getPath;
@@ -32,6 +33,7 @@ void  Request::init()
   _getters["ready"] = &Request::getReady;
   _getters["type"] = &Request::getType;
   _getters["chunk"] = &Request::getChunk;
+  _getters["file"] = &Request::getFile;
 }
 
 void Request::set(const std::string key, std::string value) 
@@ -93,7 +95,7 @@ void  Request::parse(const char* buffer, size_t bytes)
     this->parseHeader(buffer, bytes);
   else if (this->_status == E_REQUEST_HEADER)
     this->parseArgs(buffer, bytes);
-  else if (this->_status == E_REQUEST_ARGS)
+  else if (this->_status == E_REQUEST_ARGS || this->_status == E_REQUEST_BODY)
     this->parseBody(buffer, bytes);
 }
 
@@ -147,18 +149,22 @@ void  Request::parseArgs(const char* buffer, size_t bread)
 
   if (!this->update())
   {
-    header.erase(0, end);
-    return parseBody(header.c_str(), bread - end);
+    header.erase(0, end + 4);
+    return parseBody(header.c_str(), bread - (end + 4));
   }
 }
 
 void  Request::parseBody(const char* buffer, size_t bread)
 {
+  if (this->isset("chunk"))
+  {
+    // parseChunk le buffer
+  }
+
   this->_size -= this->_client.write((char*)buffer, bread);
 
   if (this->_size < 0)
   {
-    std::cout << "BAD 1" << std::endl;
     this->set(E_REQUEST_BAD);
     this->_client.remove();
   }
@@ -177,7 +183,7 @@ bool  Request::update()
 
   if (this->_status > E_REQUEST_CREATED)
   {
-    if (this->_type == E_REQUEST_OTHER || (this->_type == E_REQUEST_CGI && !this->get("method").compare("GET")))
+    if (this->_type <= E_REQUEST_LIST || (this->_type == E_REQUEST_CGI && !this->get("method").compare("GET")))
       this->set(E_REQUEST_COMPLETE);
   }
 
@@ -226,26 +232,23 @@ void  Request::setProtocol(std::string& value)
   this->_protocol = value;
 }
 
+void  Request::setChunk(std::string& value)
+{
+  this->_chunked = value;
+}
+
 void  Request::setArgs(std::string& value)
 {
   size_t del = value.find_first_of(":");
   if (del == std::string::npos)
-  {
-    std::cout << "BAD 3" << std::endl;
     return this->set(E_REQUEST_BAD);
-  }
-  
+
   size_t val = value.find_first_not_of(" ", del + 1);
-  
-  this->_args[value.substr(0, del)] = value.substr(val);
+
+  this->_args[value.substr(1, del - 1)] = value.substr(val, value.find_last_not_of(" \r\n\t\v\f"));
 
   if (!value.compare("Transfer-Encoding: chunked"))
-  {
-    if (this->_type == E_REQUEST_POST)
-      this->set(E_REQUEST_CHUNK);
-    if (this->_type == E_REQUEST_CGI)
-      this->set(E_REQUEST_CGI_CHUNK);
-  }
+    this->set("chunk", "true");
 
   if (value.find("Content-Length") != std::string::npos)
     this->set("size", this->_args["Content-Length"]);
@@ -314,9 +317,9 @@ std::string  Request::getError() const
 
 std::string  Request::getType() const
 {
-  if (this->_type == E_REQUEST_POST || this->_type == E_REQUEST_CHUNK)
+  if (this->_type == E_REQUEST_POST)
     return "DOC";
-  if (this->_type == E_REQUEST_CGI || this->_type == E_REQUEST_CGI_CHUNK)
+  if (this->_type == E_REQUEST_CGI || this->_type == E_REQUEST_LIST)
     return "PIPE";
   
   return "";
@@ -324,7 +327,12 @@ std::string  Request::getType() const
 
 std::string  Request::getChunk() const
 {
-  return this->_type == E_REQUEST_CHUNK || this->_type == E_REQUEST_CGI_CHUNK ? "CHUNK" : "";
+  return this->_chunked;
+}
+
+std::string  Request::getFile() const
+{
+  return this->_status == E_REQUEST_BODY ? "OK" : "";
 }
 
 void  Request::clean()
@@ -336,6 +344,7 @@ void  Request::clean()
   this->_path.clear();
   this->_query.clear();
   this->_protocol.clear();
+  this->_chunked.clear();
   this->_args.clear();
   if (this->_pipe[0] > 1)
     close(this->_pipe[0]);

@@ -123,39 +123,43 @@ std::vector<std::string>::const_iterator Server::iterator(int pos) const
 std::string Server::handle(const std::string& path, Request& request, Response& response) 
 {
   std::string ressource = path;
+  std::string code = this->handleRessource(ressource, request, response);
+  
+  this->setContentLength(ressource, request, response);
+  response.set("header", code);
 
+  return ressource;
+}
+
+std::string Server::handleRessource(std::string& ressource, Request& request, Response& response)
+{
   Location *location = this->getLocation(ressource);
 
   if (request.isset("error"))
-    return this->handleError("400", location, response);
+    return this->handleError("400", ressource, location);
 
   if (!location->isset("allowed_method", request.get("method")))
-    return this->handleError("405", location, response);
+    return this->handleError("405", ressource, location);
 
   if (location->isset("redirect"))
   {
     response.add("Location", location->get("redirect", "url"));
-    response.set("header", location->get("redirect", "code"));
-    return location->get("redirect", "url");
+    return location->get("redirect", "code");
   }
-
+  
   this->addPathRoot(ressource, location);
 
-  if (this->checkPathType(request.get("method"), ressource, location))
+  if (this->checkPathType(request, ressource, location))
     this->addPathIndex(ressource, location);
 
   if (access(Parser::getFolder(ressource).c_str(), F_OK) == -1 || 
     (access(ressource.c_str(), F_OK) == -1 && request.get("method").compare("POST")))
-    return this->handleError("404", location, response);
+    return this->handleError("404", ressource, location);
 
   if (!this->checkPathAccess(request.get("method"), ressource))
-    return this->handleError("403", location, response);
-  
+    return this->handleError("403", ressource, location);
 
-  if (!request.get("method").compare("GET"))
-    this->setContentLength(response, ressource);
-  response.set("header", "200");
-  return ressource;
+  return "200";
 }
 
 bool Server::checkPathAccess(std::string method, std::string &ressource) 
@@ -173,9 +177,9 @@ bool Server::checkPathAccess(std::string method, std::string &ressource)
   return true;
 }
 
-bool Server::checkPathType(std::string method, std::string &ressource, Location *location) 
+bool Server::checkPathType(Request& request, std::string &ressource, Location *location) 
 {
-  bool allowed = location->isset("allow_listing");
+  std::string method = request.get("method");
   struct stat sb;
   if (stat(ressource.c_str(), &sb) == -1)
     return false;
@@ -183,7 +187,9 @@ bool Server::checkPathType(std::string method, std::string &ressource, Location 
     return false;
   if (!method.compare("DELETE"))
     return false;
-  if (!method.compare("GET") && allowed) {
+  if (!method.compare("GET") && location->isset("allow_listing"))
+  {
+    request.set(Request::E_REQUEST_LIST);
     return false;
   }
   return true;
@@ -216,8 +222,13 @@ void Server::addPathIndex(std::string &ressource, Location *location)
     ressource.append(this->get("index"));
 }
 
-void Server::setContentLength(Response& response, const std::string& ressource) const
+void Server::setContentLength(const std::string& ressource, Request& request, Response& response) const
 {
+  if (request.get("method").compare("GET"))
+  {
+    response.add("Content-Length", "0");
+    return;
+  }
   response.set(Response::E_RESPONSE_DOC);
   std::ifstream target(ressource.c_str(), std::ios::binary);
   target.seekg(0, std::ios::end);
@@ -227,11 +238,8 @@ void Server::setContentLength(Response& response, const std::string& ressource) 
   response.add("Content-Length", Parser::to_string(content_length));
 }
 
-std::string Server::handleError(std::string code, Location *location, Response& response) 
+std::string Server::handleError(std::string code, std::string& ressource, Location *location) 
 {
-  std::string ressource;
-
-
   if (location->isset("error_page"))
     ressource = location->get("error_page", code);
 
@@ -246,13 +254,12 @@ std::string Server::handleError(std::string code, Location *location, Response& 
     ressource = this->_ctx_err.substr(0);
     ressource.append("/error.html");
   }
-  this->setContentLength(response, ressource);
-  response.set("header", code);
-  return ressource;
+  return code;
 }
 
 void  Server::execute(const std::string& ressource, Request& request, Response& response)
 {
+  response.set(Response::E_RESPONSE_PIPE);
   // Si c'est un cgi envoi dans cgi sinon envoi dans list
   (void)ressource;
   (void)request;
@@ -286,7 +293,6 @@ std::string Server::setCgi(const std::string& ressource, Request& request, bool 
 
 void  Server::cgi(const std::string& ressource, Request& request, Response& response)
 {
-
   std::string cgi = this->setCgi(ressource, request, !Parser::getExtension(ressource).compare(".php"));
 
   int* req = request.pipe("open");

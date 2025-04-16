@@ -65,12 +65,12 @@ class Server {
 
     std::string                                                     _cgi_env[13];
     
-    void                                                            handlePath(std::string& ressource, Request& request, Location* location);
+    std::string                                                     handleRessource(std::string& ressource, Request& request, Response& response);
     bool                                                            checkPathAccess(std::string method, std::string& ressource);
-    bool                                                            checkPathType(std::string method, std::string& ressource, Location* location);
+    bool                                                            checkPathType(Request& request, std::string& ressource, Location* location);
     void                                                            addPathRoot(std::string& ressource, Location* location);
     void                                                            addPathIndex(std::string& ressource, Location* location);
-    std::string                                                     handleError(std::string code, Location *location, Response& response);
+    std::string                                                     handleError(std::string code, std::string& ressource, Location *location);
     std::string                                                     setCgi(const std::string& ressource, Request& request, bool is_php);
     
     void                                                            setListen(const std::string& value);
@@ -81,7 +81,7 @@ class Server {
     void                                                            setAllowedMethod(const std::string& value);
     void                                                            setAllowListing(const std::string& value);
     void                                                            setRedirect(const std::string& value);
-    void                                                            setContentLength(Response& response, const std::string& ressource) const;
+    void                                                            setContentLength(const std::string& ressource, Request& request, Response& response) const;
 
     std::string                                                     getServerName() const;
     std::string                                                     getListen() const;
