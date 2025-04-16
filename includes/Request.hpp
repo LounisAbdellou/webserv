@@ -1,14 +1,16 @@
 #ifndef REQUEST_HPP
 #define REQUEST_HPP
 
+#include "Header.hpp"
+
 #include <string.h>
 
 class Client;
 
 class Request {
 public:
-  Request(Client* client);
-  ~Request() {};
+  Request(Client& client);
+  ~Request();
   
   enum Status {
     E_REQUEST_CREATED = 0,
@@ -38,17 +40,17 @@ public:
   std::string                                     get(const std::string container, const std::string key) const;
 
   int*                                            pipe(const std::string value);
-  int                                             socket();
+  int                                             socket() const;
   void                                            clean();
   
 private:
   Request(const Request &src);
-  Request &operator=(const Request &src);
+  Request& operator=(Request &src);
   
-  std::map<std::string, void (Request::*)(const std::string &)>   _setters;
-  std::map<std::string, std::string(Request::*)() const >         _getters;
+  std::map<std::string, void (Request::*)(std::string &)>   _setters;
+  std::map<std::string, std::string(Request::*)() const >   _getters;
   
-  Client*                                         _client;
+  Client&                                         _client;
   Status                                          _status;
   Type                                            _type;
   int                                             _pipe[2];
@@ -61,9 +63,9 @@ private:
   std::map<std::string, std::string>              _args;
 
   bool                                            update();
-  void                                            parseHeader(const char* buffer);
-  void                                            parseArgs(const char* buffer);
-  void                                            parseBody(const char* buffer);
+  void                                            parseHeader(const char* buffer, size_t bread);
+  void                                            parseArgs(const char* buffer, size_t bread);
+  void                                            parseBody(const char* buffer, size_t bread);
   
   void                                            setMethod(std::string& value);
   void                                            setPath(std::string& value);
@@ -71,6 +73,7 @@ private:
   void                                            setProtocol(std::string& value);
   void                                            setArgs(std::string& value);
   void                                            setSize(std::string& value);
+  void                                            setPipe(std::string& value);
 
   std::string                                     getMethod() const;
   std::string                                     getPath() const;

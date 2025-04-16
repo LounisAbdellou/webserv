@@ -1,6 +1,11 @@
 #include "Client.hpp"
+#include "Request.hpp"
 
-Client::Client(Server& server, int fd) : _socket(fd), _server(server), _request(this) {}
+Client::Client(Server& server, int fd) : _socket(fd), _server(server), _request(*this) 
+{
+  ::bzero(this->_buffer, BUFFER_SIZE + 1);
+  this->init();
+}
 
 Client::~Client() {}
 
@@ -41,28 +46,32 @@ bool  Client::receive()
 {
   ssize_t bread = recv(this->_socket, this->_buffer, BUFFER_SIZE - 1, MSG_DONTWAIT);
 
-  if (bread == -1)
+  if (bread <= 0)
     throw Parser::WebservParseException("");
   
-  if (bread == 0)
-    return this->_request.isset("ready");
+  /*std::cout << "Frag - " << bread << "\n" << this->_buffer << std::endl;*/
+  /*if (bread == 0)*/
+    /*return this->_request.isset("ready");*/
 
   this->_buffer[bread] = '\0';
   this->_request.parse(this->_buffer, bread);
-  ::bzero(this->_buffer, BUFFER_SIZE);
+  ::bzero(this->_buffer, BUFFER_SIZE + 1);
   return this->_request.isset("ready");
 }
 
 bool  Client::send()
 {
+
   if (!this->isset("ressource"))
     this->set("ressource", this->_request.get("path"));
   
   std::string content;
+  int offset = 0;
   
   if (!this->_response.isset("status"))
   {
     content.append(this->_response.get("header"));
+    offset = content.length();
     this->_response.set(Response::E_RESPONSE_HEADER);
   }
 
@@ -75,12 +84,16 @@ bool  Client::send()
     content.append(this->read());
   }
 
+
   ssize_t bwrite = ::send(this->_socket, content.c_str(), content.length(), MSG_NOSIGNAL);
 
   if (bwrite == -1)
     throw Parser::WebservParseException("");
 
-  ::bzero(this->_buffer, BUFFER_SIZE);
+  /*while (true);*/
+  this->_response.bsend((bwrite - offset) * -1);
+
+  ::bzero(this->_buffer, BUFFER_SIZE + 1);
   return this->_response.isset("done");
 }
 
@@ -112,15 +125,12 @@ std::string   Client::read()
   if (!this->_response.get("type").compare("DOC"))
   {
     std::ifstream target(this->_ressource.c_str(), std::ios::binary);
-    while (true) 
-    {	
-      int bytes = target.readsome(this->_buffer, BUFFER_SIZE);
-      if (bytes <= 0)
-        break;
-      
-      std::string content(this->_buffer, bytes);
-      body.append(content);
-    }
+    target.seekg(this->_response.bsend() * -1, std::ios::end);
+    int bytes = target.readsome(this->_buffer, BUFFER_SIZE);
+    if (this->_response.bsend() - bytes == 0)
+      this->_response.set(Response::E_RESPONSE_COMPLETE);
+    std::string content(this->_buffer, bytes);
+    body.append(content);
     target.close();
   }
   else
@@ -152,4 +162,16 @@ void  Client::setRessource(const std::string& value)
 std::string Client::getRessource() const
 {
   return this->_ressource;
+}
+
+int Client::socket() const
+{
+  return this->_socket;
+}
+
+void  Client::clean()
+{
+  this->_request.clean();
+  this->_response.clean();
+  this->_ressource.clear();
 }

@@ -1,16 +1,17 @@
 #include "Request.hpp"
+#include "Client.hpp"
 
-Request::Request(Client* client) : Request(), _client(client), _status(E_REQUEST_CREATED), _type(E_REQUEST_OTHER)
+Request::Request(Client& client) : _client(client), _status(E_REQUEST_CREATED), _type(E_REQUEST_OTHER)
 {
   _size = 0;
   _pipe[0] = -1;
   _pipe[1] = -1;
-  init();
+  this->init();
 }
 
 Request::~Request() {}
 
-Request::Request(const Request& src) { (void)src; }
+Request::Request(const Request& src) : _client(src._client) { (void)src; }
 
 Request& Request::operator=(Request& src) { return src; }
 
@@ -78,12 +79,12 @@ void  Request::set(Request::Type type)
 int*  Request::pipe(const std::string value)
 {
   this->set("pipe", value);
-  return this->_pipe[pipe];
+  return this->_pipe;
 }
 
 int   Request::socket() const
 {
-  return this->_socket;
+  return this->_client.socket();
 }
 
 void  Request::parse(const char* buffer, size_t bytes)
@@ -99,7 +100,7 @@ void  Request::parse(const char* buffer, size_t bytes)
 void  Request::parseHeader(const char* buffer, size_t bread)
 {
   std::string header(buffer, bread);
-  char*       attr[3] = { "method", "path", "protocol" };
+  std::string attr[3] = { "method", "path", "protocol" };
   size_t      begin = 0;
   size_t      end = 0;
 
@@ -112,7 +113,7 @@ void  Request::parseHeader(const char* buffer, size_t bread)
      end = header.find_first_of("\n", begin);
 
     if (end != std::string::npos)
-      this->set(attr[i], header.substr(begin, end - begin))
+      this->set(attr[i], header.substr(begin, end - begin));
   }
 
   if (!this->update())
@@ -124,8 +125,8 @@ void  Request::parseHeader(const char* buffer, size_t bread)
 
 void  Request::parseArgs(const char* buffer, size_t bread)
 {
-  std::string header(buffer, BUFFER_SIZE);
-  size_t      body = header.find("\n\n");
+  std::string header(buffer, bread);
+  size_t      body = header.find("\r\n\r\n");
   size_t      begin = 0;
   size_t      end = 0;
 
@@ -133,10 +134,12 @@ void  Request::parseArgs(const char* buffer, size_t bread)
   {
     if (end != 0)
       begin = end + 1;
-    end = header.find_first_of("\n", begin);
-
+    end = header.find("\r\n", begin);
+    
     if (end != std::string::npos)
-      this->set("args", header.substr(begin, end - begin))
+      this->set("args", header.substr(begin, end - begin));
+    else
+      break;
   }
 
   if (end == body)
@@ -151,12 +154,13 @@ void  Request::parseArgs(const char* buffer, size_t bread)
 
 void  Request::parseBody(const char* buffer, size_t bread)
 {
-  this->_size -= this->_client->write(buffer, bread);
+  this->_size -= this->_client.write((char*)buffer, bread);
 
   if (this->_size < 0)
   {
+    std::cout << "BAD 1" << std::endl;
     this->set(E_REQUEST_BAD);
-    this->_client->remove();
+    this->_client.remove();
   }
 
   if (this->_size == 0)
@@ -171,10 +175,10 @@ bool  Request::update()
       this->set(E_REQUEST_HEADER);
   }
 
-  if (this->_status < E_REQUEST_ARGS)
+  if (this->_status > E_REQUEST_CREATED)
   {
     if (this->_type == E_REQUEST_OTHER || (this->_type == E_REQUEST_CGI && !this->get("method").compare("GET")))
-      return (this->set(E_REQUEST_COMPLETE), true);
+      this->set(E_REQUEST_COMPLETE);
   }
 
   return this->_status == E_REQUEST_COMPLETE || this->_status == E_REQUEST_BAD;
@@ -183,7 +187,10 @@ bool  Request::update()
 void  Request::setMethod(std::string& value)
 {
   if (value.compare("GET") && value.compare("POST") && value.compare("DELETE"))
+  {
+    std::cout << "BAD 2" << std::endl;
     return this->set(E_REQUEST_BAD);
+  }
 
   if (!value.compare("POST"))
     this->set(E_REQUEST_POST);
@@ -223,7 +230,10 @@ void  Request::setArgs(std::string& value)
 {
   size_t del = value.find_first_of(":");
   if (del == std::string::npos)
+  {
+    std::cout << "BAD 3" << std::endl;
     return this->set(E_REQUEST_BAD);
+  }
   
   size_t val = value.find_first_not_of(" ", del + 1);
   
@@ -245,7 +255,7 @@ void  Request::setPipe(std::string& value)
 {
   if (!value.compare("open"))
   {
-    if (this->_pipe[0] < 0 && this->_pipe[1] < 0 && pipe(this->_pipe) < 0)
+    if (this->_pipe[0] < 0 && this->_pipe[1] < 0 && ::pipe(this->_pipe) < 0)
       throw Parser::WebservParseException("");
     return ;
   }
@@ -285,11 +295,11 @@ std::string  Request::getProtocol() const
   return this->_protocol;
 }
 
-std::string  Request::getArgs(std::string& key) const
+std::string  Request::getArgs(const std::string& key) const
 {
   if (this->_args.find(key) == this->_args.end())
     return "";
-  return this->_args[key];
+  return this->_args.at(key);
 }
 
 std::string  Request::getReady() const

@@ -1,7 +1,22 @@
 #include "Response.hpp"
 #include "Parser.hpp"
 
-Response::Response() : Response() 
+const std::string Response::OK = "200 OK";
+const std::string Response::CREATED = "201 Created";
+const std::string Response::MOVED_PERM = "301 Moved Permanently";
+const std::string Response::FOUND = "302 Found";
+const std::string Response::TEMP_REDIRECT = "307 Temporary Redirect";
+const std::string Response::PERM_REDIRECT = "308 Permanent Redirect";
+const std::string Response::BAD_REQUEST = "400 Bad Request";
+const std::string Response::NOT_FOUND = "404 Not Found";
+const std::string Response::FORBIDDEN = "403 Forbidden";
+const std::string Response::NOT_ALLOWED = "405 Method Not Allowed";
+const std::string Response::LENGTH_REQUIRED = "411 Length Required";
+const std::string Response::HEADER_TOO_LARGE = "431 Request Header Fields Too Large";
+const std::string Response::INTERNAL_SERVER_ERROR = "500 Internal Server Error";
+const std::string Response::HTTP_VERSION = "505 HTTP Version Not Supported";
+
+Response::Response() : _status(E_RESPONSE_CREATED), _type(E_RESPONSE_OTHER)
 {
   _codes["200"] = OK;
   _codes["201"] = CREATED;
@@ -18,27 +33,16 @@ Response::Response() : Response()
   _codes["500"] = INTERNAL_SERVER_ERROR;
   _codes["505"] = HTTP_VERSION;
 
+  this->_pipe[0] = -1;
+  this->_pipe[1] = -1;
+  this->_bsend = 0;
+
   this->init();
 }
 
-Response::Response(const Response &src) { (void)src }
+Response::Response(const Response &src) { (void)src; }
 
-Response &Response::operator=(const Response &src) { return src }
-
-const std::string Response::OK = "200 OK";
-const std::string Response::CREATED = "201 Created";
-const std::string Response::MOVED_PERM = "301 Moved Permanently";
-const std::string Response::FOUND = "302 Found";
-const std::string Response::TEMP_REDIRECT = "307 Temporary Redirect";
-const std::string Response::PERM_REDIRECT = "308 Permanent Redirect";
-const std::string Response::BAD_REQUEST = "400 Bad Request";
-const std::string Response::NOT_FOUND = "404 Not Found";
-const std::string Response::FORBIDDEN = "403 Forbidden";
-const std::string Response::NOT_ALLOWED = "405 Method Not Allowed";
-const std::string Response::LENGTH_REQUIRED = "411 Length Required";
-const std::string Response::HEADER_TOO_LARGE = "431 Request Header Fields Too Large";
-const std::string Response::INTERNAL_SERVER_ERROR = "500 Internal Server Error";
-const std::string Response::HTTP_VERSION = "505 HTTP Version Not Supported";
+Response &Response::operator=(Response &src) { return src; }
 
 void    Response::init()
 {
@@ -48,6 +52,7 @@ void    Response::init()
   _getters["header"] = &Response::getHeader;
   _getters["status"] = &Response::getStatus;
   _getters["done"] = &Response::getDone;
+  _getters["type"] = &Response::getType;
   
 }
 
@@ -55,6 +60,11 @@ void Response::set(const std::string key, std::string value)
 {
   if (this->_setters.find(key) == this->_setters.end()) return ;
   (this->*_setters[key])(value);
+}
+
+void  Response::add(const std::string key, std::string value)
+{
+  this->_args[key] = value;
 }
 
 bool Response::has(const std::string key) const 
@@ -95,17 +105,13 @@ int*  Response::pipe(const std::string value)
 void    Response::setHeader(std::string& value)
 {
   this->_header = "HTTP/1.1 " + this->_codes[value] + "\r\n";
-  for (std::map<std::string, std::string>::iterator it = this->_args.begin(); it != this->_args.end(); it++) 
-  {
-    this->_header.append(it->first + ": " + it->second + "\r\n");
-  }
 }
 
 void  Response::setPipe(std::string& value)
 {
   if (!value.compare("open"))
   {
-    if (this->_pipe[0] < 0 && this->_pipe[1] < 0 && pipe(this->_pipe) < 0)
+    if (this->_pipe[0] < 0 && this->_pipe[1] < 0 && ::pipe(this->_pipe) < 0)
       throw Parser::WebservParseException("");
     return ;
   }
@@ -120,14 +126,16 @@ void  Response::setPipe(std::string& value)
   }
 }
 
-void  Request::setSize(std::string& value)
-{
-  this->_size = ::atoi(value.c_str());
-}
-
 std::string Response::getHeader() const
 {
-  return this->_header;
+  std::string res = this->_header;
+  for (std::map<std::string, std::string>::const_iterator it = this->_args.begin(); it != this->_args.end(); it++) 
+  {
+    res.append(it->first + ": " + it->second + "\r\n");
+  }
+  res.append("\r\n");
+
+  return res;
 }
 
 std::string Response::getType() const
@@ -150,6 +158,12 @@ std::string Response::getDone() const
   return this->_status == E_RESPONSE_COMPLETE ? "OK" : ""; 
 }
 
+int Response::bsend(int bwrite)
+{
+  this->_bsend += bwrite;
+  return this->_bsend;
+}
+
 void Response::clean() 
 {
   this->set(E_RESPONSE_CREATED);
@@ -162,4 +176,5 @@ void Response::clean()
   if (this->_pipe[1] > 1)
     ::close(this->_pipe[1]);
   this->_pipe[1] = -1;
+  this->_bsend = 0;
 }

@@ -147,7 +147,7 @@ void  Webserv::configureServer(std::ifstream& file)
     key = Parser::getKey(line);
     
     if (!server->has(key))
-      Parser::throwError("Invalid server's instruction");
+      Parser::throwError("Invalid server's instruction => '" + key + "'");
       
     server->set(key, Parser::getValue(key, line));
   }
@@ -322,13 +322,14 @@ void  Webserv::run()
             events[i].events = EPOLLIN;
             if (epoll_ctl(this->_epoll_fd, EPOLL_CTL_MOD, events[i].data.fd, &events[i]) == -1)
               this->throwError("Epoll mod failed");
+            client->clean();
           }
         }
         catch (const std::exception& e) 
         {
           this->close(events[i].data.fd);
-          if (epoll_ctl(this->_epoll_fd, EPOLL_CTL_DEL, events[i].data.fd, &events[i]) == -1)
-            this->throwError("Epoll mod failed");
+          /*if (epoll_ctl(this->_epoll_fd, EPOLL_CTL_DEL, events[i].data.fd, &events[i]) == -1)*/
+            /*this->throwError("Epoll mod failed");*/
         }
       }
     }

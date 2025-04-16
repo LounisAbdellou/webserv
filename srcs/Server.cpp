@@ -19,6 +19,8 @@ Server::Server() : _ctx("./var/www"), _ctx_err("./var/error")
   _cgi_env[10] = "HTTP_USER_AGENT";
   _cgi_env[11] = "PHP_SELF";
   _cgi_env[12] = "PYTHONPATH";
+
+  this->init();
 }
 
 Server::Server(const Server &cpy) { (void)cpy; }
@@ -124,7 +126,7 @@ std::string Server::handle(const std::string& path, Request& request, Response& 
 
   Location *location = this->getLocation(ressource);
 
-  if (!request.isset("error"))
+  if (request.isset("error"))
     return this->handleError("400", location, response);
 
   if (!location->isset("allowed_method", request.get("method")))
@@ -132,6 +134,7 @@ std::string Server::handle(const std::string& path, Request& request, Response& 
 
   if (location->isset("redirect"))
   {
+    response.add("Location", location->get("redirect", "url"));
     response.set("header", location->get("redirect", "code"));
     return location->get("redirect", "url");
   }
@@ -148,6 +151,9 @@ std::string Server::handle(const std::string& path, Request& request, Response& 
   if (!this->checkPathAccess(request.get("method"), ressource))
     return this->handleError("403", location, response);
   
+
+  if (!request.get("method").compare("GET"))
+    this->setContentLength(response, ressource);
   response.set("header", "200");
   return ressource;
 }
@@ -210,11 +216,21 @@ void Server::addPathIndex(std::string &ressource, Location *location)
     ressource.append(this->get("index"));
 }
 
+void Server::setContentLength(Response& response, const std::string& ressource) const
+{
+  response.set(Response::E_RESPONSE_DOC);
+  std::ifstream target(ressource.c_str(), std::ios::binary);
+  target.seekg(0, std::ios::end);
+  int content_length = target.tellg();
+  target.close();
+  response.bsend(content_length);
+  response.add("Content-Length", Parser::to_string(content_length));
+}
+
 std::string Server::handleError(std::string code, Location *location, Response& response) 
 {
   std::string ressource;
 
-  response.set("header", code);
 
   if (location->isset("error_page"))
     ressource = location->get("error_page", code);
@@ -230,6 +246,8 @@ std::string Server::handleError(std::string code, Location *location, Response& 
     ressource = this->_ctx_err.substr(0);
     ressource.append("/error.html");
   }
+  this->setContentLength(response, ressource);
+  response.set("header", code);
   return ressource;
 }
 
@@ -300,6 +318,7 @@ void Server::setListen(const std::string &value)
     Validator::throwError("This couple 'ip:port' already exist");
   this->_listen.push_back(listen);
 }
+
 
 void Server::setServerName(const std::string &value) 
 { 

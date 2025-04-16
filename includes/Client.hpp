@@ -3,12 +3,13 @@
 
 #define BUFFER_SIZE 4096
 
-#include "ABasicClass.hpp"
+#include "Header.hpp"
+
 #include "Server.hpp"
-#include "Request.hpp"
 #include "Response.hpp"
 
 class Server;
+class Request;
 
 class Client {
 public:
@@ -19,7 +20,9 @@ public:
   void          set(const std::string key, const std::string value);
   bool          has(const std::string key) const;
   bool          isset(const std::string key) const;
+  int           socket() const;
   std::string   get(const std::string key) const;
+  void          clean();
 
 
   bool          receive();

@@ -1,10 +1,8 @@
 #ifndef __LOCATION__
 #define __LOCATION__
 
-#include <iostream>
-#include <string>
-#include <vector>
-#include <map>
+#include "Header.hpp"
+
 #include "Validator.hpp"
   
 

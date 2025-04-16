@@ -1,10 +1,8 @@
 #ifndef __SERVER__
 #define __SERVER__
 
-#include "ABasicClass.hpp"
+#include "Header.hpp"
 
-#include <iostream>
-#include <vector>
 #include <dirent.h>
 #include <sys/types.h>
 #include "Location.hpp"
@@ -23,6 +21,8 @@
 
 
 #define BUFFER_SIZE 4096
+
+class Response;
 
 struct Entry {
 	std::string name;
@@ -81,6 +81,7 @@ class Server {
     void                                                            setAllowedMethod(const std::string& value);
     void                                                            setAllowListing(const std::string& value);
     void                                                            setRedirect(const std::string& value);
+    void                                                            setContentLength(Response& response, const std::string& ressource) const;
 
     std::string                                                     getServerName() const;
     std::string                                                     getListen() const;
