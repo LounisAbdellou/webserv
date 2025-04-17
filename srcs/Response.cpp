@@ -44,6 +44,8 @@ Response::Response(const Response &src) { (void)src; }
 
 Response &Response::operator=(Response &src) { return src; }
 
+Response::~Response() { this->clean(); }
+
 void    Response::init()
 {
   _setters["header"] = &Response::setHeader;

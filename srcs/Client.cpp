@@ -46,12 +46,12 @@ bool  Client::receive()
 {
   ssize_t bread = recv(this->_socket, this->_buffer, BUFFER_SIZE - 1, MSG_DONTWAIT);
 
-  if (bread <= 0)
+  if (bread < 0)
     throw Parser::WebservParseException("");
   
   /*std::cout << "Frag - " << bread << "\n" << this->_buffer << std::endl;*/
-  /*if (bread == 0)*/
-    /*return this->_request.isset("ready");*/
+  if (bread == 0)
+    return this->_request.isset("ready");
   /*std::cout << "RECEIVE" << std::endl;*/
 
   this->_buffer[bread] = '\0';
@@ -66,6 +66,9 @@ bool  Client::send()
   if (!this->isset("ressource"))
     this->set("ressource", this->_request.get("path"));
   
+  if (!this->_request.get("type").compare("PIPE"))
+    this->_server.execute(this->_ressource, this->_request, this->_response);
+  
   std::string content;
   int offset = 0;
   
@@ -79,19 +82,24 @@ bool  Client::send()
   if (!this->_response.isset("type"))
     this->_response.set(Response::E_RESPONSE_COMPLETE);
   else
-  {
-    if (!this->_request.get("type").compare("PIPE"))
-      this->_server.execute(this->_ressource, this->_request, this->_response);
     content.append(this->read());
-  }
 
-  std::cout << "content :\n" << content << std::endl;
+  /*std::cout << "content :\n" << content << std::endl;*/
   ssize_t bwrite = ::send(this->_socket, content.c_str(), content.length(), MSG_NOSIGNAL);
+
+  /*std::cout << "send : " << bwrite << std::endl;*/
+
 
   if (bwrite == -1)
     throw Parser::WebservParseException("");
 
   this->_response.bsend((bwrite - offset) * -1);
+
+  if (this->_response.bsend() == 0)
+  {
+    this->_response.pipe("close");
+    this->_request.pipe("close");
+  }
 
   ::bzero(this->_buffer, BUFFER_SIZE + 1);
   return this->_response.isset("done");
@@ -142,9 +150,10 @@ std::string   Client::read()
   else
   {
     int* fd = this->_response.pipe("open");
-    while (::read(fd[0], this->_buffer, BUFFER_SIZE) > 0)
-      body.append(this->_buffer);
-    this->_response.pipe("close");
+    int bytes = ::read(fd[0], this->_buffer, BUFFER_SIZE);
+    if (this->_response.bsend() - bytes == 0 || bytes == 0)
+      this->_response.set(Response::E_RESPONSE_COMPLETE);
+    body.append(this->_buffer);
   }
   return body;
 }

@@ -9,11 +9,11 @@ Request::Request(Client& client) : _client(client), _status(E_REQUEST_CREATED), 
   this->init();
 }
 
-Request::~Request() {}
-
 Request::Request(const Request& src) : _client(src._client) { (void)src; }
 
 Request& Request::operator=(Request& src) { return src; }
+
+Request::~Request() { this->clean(); }
 
 void  Request::init()
 {
@@ -34,6 +34,7 @@ void  Request::init()
   _getters["type"] = &Request::getType;
   _getters["chunk"] = &Request::getChunk;
   _getters["file"] = &Request::getFile;
+  _getters["list"] = &Request::getList;
 }
 
 void Request::set(const std::string key, std::string value) 
@@ -333,6 +334,11 @@ std::string  Request::getChunk() const
 std::string  Request::getFile() const
 {
   return this->_status == E_REQUEST_BODY ? "OK" : "";
+}
+
+std::string  Request::getList() const
+{
+  return this->_type == E_REQUEST_LIST ? "OK" : "";
 }
 
 void  Request::clean()

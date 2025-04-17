@@ -125,7 +125,8 @@ std::string Server::handle(const std::string& path, Request& request, Response& 
   std::string ressource = path;
   std::string code = this->handleRessource(ressource, request, response);
   
-  this->setContentLength(ressource, request, response);
+  if (request.get("type").compare("PIPE"))
+    this->setContentLength(ressource, request, response);
   response.set("header", code);
 
   return ressource;
@@ -260,10 +261,43 @@ std::string Server::handleError(std::string code, std::string& ressource, Locati
 void  Server::execute(const std::string& ressource, Request& request, Response& response)
 {
   response.set(Response::E_RESPONSE_PIPE);
-  // Si c'est un cgi envoi dans cgi sinon envoi dans list
-  (void)ressource;
-  (void)request;
-  (void)response;
+  if (request.isset("list"))
+    return this->listing(ressource, response);
+  return this->cgi(ressource, request, response);
+}
+
+void  Server::listing(const std::string& ressource, Response& response)
+{
+  Entry entry;
+  std::vector<struct Entry> entries;
+  DIR *dir = opendir(ressource.c_str());
+  struct dirent *dir_entry = readdir(dir);
+  ;
+
+  while (dir_entry != NULL) {
+    dir_entry = readdir(dir);
+
+    if (!dir_entry || dir_entry->d_name[0] == '.')
+      continue;
+
+    entry.name = dir_entry->d_name;
+    entry.isDir = dir_entry->d_type == DT_DIR;
+
+    entries.push_back(entry);
+  }
+
+  closedir(dir);
+
+  std::string listing = Parser::getListingHtml(entries, ressource);
+
+  int* res = response.pipe("open");
+  
+  ::write(res[1], listing.c_str(), listing.length());
+  
+  response.bsend(listing.length());
+
+  response.add("Content-Length", Parser::to_string(response.bsend()));
+
 }
 
 std::string Server::setCgi(const std::string& ressource, Request& request, bool is_php)
@@ -283,6 +317,7 @@ std::string Server::setCgi(const std::string& ressource, Request& request, bool 
   setenv(this->_cgi_env[10].c_str(), request.get("args", "User-Agent").c_str(), 1); // PB
   if (is_php)
   {
+    setenv("REDIRECT_STATUS", "200", 1);
     setenv("PHP_SELF", ressource.c_str(), 1);
     return "/bin/php-cgi";
   }
@@ -297,21 +332,37 @@ void  Server::cgi(const std::string& ressource, Request& request, Response& resp
 
   int* req = request.pipe("open");
   int* res = response.pipe("open");
+  int inter[] = { -1, -1 }; 
 
   const char *args[] = {cgi.c_str(), ressource.c_str(), NULL};
-
+  
+  pipe(inter);
   pid_t pid = fork();
   if (pid == 0)
   {
     dup2(req[0], 0);
-    dup2(res[1], 1);
+    dup2(inter[1], 1);
     request.pipe("close");
     response.pipe("close");
+    close(inter[0]);
+    close(inter[1]);
     execvp(cgi.c_str(), (char**)args);
   }
   request.pipe("close");
-  close(res[1]);
+  close(inter[1]);
   waitpid(pid, NULL, 0);
+  
+  char buffer[BUFFER_SIZE + 1];
+  
+  ::bzero(buffer, BUFFER_SIZE + 1);
+  
+  while (::read(inter[0], buffer, BUFFER_SIZE))
+  {
+    response.bsend(::write(res[1], buffer, ::strlen(buffer)));
+    ::bzero(buffer, BUFFER_SIZE + 1);
+  }
+  response.add("Content-Length", Parser::to_string(response.bsend()));
+  close(inter[0]);
 }
 
 void Server::setListen(const std::string &value) 

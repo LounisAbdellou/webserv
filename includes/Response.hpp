@@ -6,7 +6,7 @@
 class Response {
   public:
     Response();
-    ~Response() {};
+    ~Response();
     
     static const std::string OK;
     static const std::string CREATED;

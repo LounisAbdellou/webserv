@@ -87,6 +87,7 @@ private:
   std::string                                     getType() const;
   std::string                                     getChunk() const;
   std::string                                     getFile() const;
+  std::string                                     getList() const;
 
 };
 
