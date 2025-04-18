@@ -329,7 +329,7 @@ void  Webserv::run()
         {
           this->close(events[i].data.fd);
           /*if (epoll_ctl(this->_epoll_fd, EPOLL_CTL_DEL, events[i].data.fd, &events[i]) == -1)*/
-            /*this->throwError("Epoll mod failed");*/
+          /*  this->throwError("Epoll mod failed");*/
         }
       }
     }

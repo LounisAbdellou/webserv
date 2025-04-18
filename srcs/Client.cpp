@@ -51,7 +51,7 @@ bool  Client::receive()
   
   /*std::cout << "Frag - " << bread << "\n" << this->_buffer << std::endl;*/
   if (bread == 0)
-    return this->_request.isset("ready");
+    throw Parser::WebservParseException("");
   /*std::cout << "RECEIVE" << std::endl;*/
 
   this->_buffer[bread] = '\0';
