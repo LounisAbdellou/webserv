@@ -355,28 +355,29 @@ void  Server::cgi(const std::string& ressource, Request& request, Response& resp
   char buffer[BUFFER_SIZE + 1];
   
   ::bzero(buffer, BUFFER_SIZE + 1);
+
+  int offset = 0;
   
   if (!Parser::getExtension(ressource).compare(".php"))
   {
     ::read(inter[0], buffer, BUFFER_SIZE);
 
-    std::string offset = buffer;
+    std::string str = buffer;
 
-    int bsend = ::write(res[1], buffer, ::strlen(buffer));
-
-    if (offset.find("\r\n\r\n") != std::string::npos)
-      bsend -= offset.find("\r\n\r\n") + 4;
-
-    response.bsend(bsend);
+    if (str.find("\r\n\r\n") != std::string::npos)
+      offset = str.find("\r\n\r\n") + 4;
+    
+    response.bsend(::write(res[1], buffer, ::strlen(buffer)));
+    
     ::bzero(buffer, BUFFER_SIZE + 1);
   }
-    
+
   while (::read(inter[0], buffer, BUFFER_SIZE))
   {
     response.bsend(::write(res[1], buffer, ::strlen(buffer)));
     ::bzero(buffer, BUFFER_SIZE + 1);
   }
-  response.add("Content-Length", Parser::to_string(response.bsend()));
+  response.add("Content-Length", Parser::to_string(response.bsend() - offset));
   response.set(Response::E_RESPONSE_CGI);
   close(inter[0]);
 }

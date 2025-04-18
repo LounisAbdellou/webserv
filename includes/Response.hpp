@@ -57,8 +57,8 @@ class Response {
     Response(const Response &src);
     Response &operator=(Response &src);
     
-    std::map<std::string, void (Response::*)(std::string &)>   _setters;
-    std::map<std::string, std::string(Response::*)() const >         _getters;
+    std::map<std::string, void (Response::*)(std::string &)>    _setters;
+    std::map<std::string, std::string(Response::*)() const >    _getters;
     
     Status                              _status;
     Type                                _type;
