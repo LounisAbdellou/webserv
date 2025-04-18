@@ -88,6 +88,7 @@ private:
   std::string                                     getChunk() const;
   std::string                                     getFile() const;
   std::string                                     getList() const;
+  std::string                                     getCgi() const;
 
 };
 

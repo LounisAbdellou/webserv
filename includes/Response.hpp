@@ -26,8 +26,9 @@ class Response {
     enum Status 
     {
       E_RESPONSE_CREATED = 0,
-      E_RESPONSE_HEADER = 1,
-      E_RESPONSE_COMPLETE = 2
+      E_RESPONSE_CGI = 1,
+      E_RESPONSE_HEADER = 2,
+      E_RESPONSE_COMPLETE = 3
     };
     
     enum Type 
@@ -75,6 +76,7 @@ class Response {
     std::string                         getType() const;
     std::string                         getStatus() const;
     std::string                         getDone() const;
+    std::string                         getCgi() const;
 };
 
 #endif // !RESPONSE_HPP

@@ -35,6 +35,7 @@ void  Request::init()
   _getters["chunk"] = &Request::getChunk;
   _getters["file"] = &Request::getFile;
   _getters["list"] = &Request::getList;
+  _getters["cgi"] = &Request::getCgi;
 }
 
 void Request::set(const std::string key, std::string value) 
@@ -339,6 +340,11 @@ std::string  Request::getFile() const
 std::string  Request::getList() const
 {
   return this->_type == E_REQUEST_LIST ? "OK" : "";
+}
+
+std::string  Request::getCgi() const
+{
+  return this->_type == E_REQUEST_CGI ? "OK" : "";
 }
 
 void  Request::clean()

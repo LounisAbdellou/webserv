@@ -55,6 +55,7 @@ void    Response::init()
   _getters["status"] = &Response::getStatus;
   _getters["done"] = &Response::getDone;
   _getters["type"] = &Response::getType;
+  _getters["cgi"] = &Response::getType;
   
 }
 
@@ -135,8 +136,6 @@ std::string Response::getHeader() const
   {
     res.append(it->first + ": " + it->second + "\r\n");
   }
-  res.append("\r\n");
-
   return res;
 }
 
@@ -152,12 +151,17 @@ std::string Response::getType() const
 
 std::string Response::getStatus() const
 {
-  return this->_status > E_RESPONSE_CREATED ? "OK" : ""; 
+  return this->_status > E_RESPONSE_CGI ? "OK" : ""; 
 }
 
 std::string Response::getDone() const
 {
   return this->_status == E_RESPONSE_COMPLETE ? "OK" : ""; 
+}
+
+std::string Response::getCgi() const
+{
+  return this->_status == E_RESPONSE_CGI ? "OK" : ""; 
 }
 
 int Response::bsend(int bwrite)

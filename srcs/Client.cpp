@@ -66,7 +66,7 @@ bool  Client::send()
   if (!this->isset("ressource"))
     this->set("ressource", this->_request.get("path"));
   
-  if (!this->_request.get("type").compare("PIPE"))
+  if (!this->_request.get("type").compare("PIPE") && !this->_response.isset("cgi"))
     this->_server.execute(this->_ressource, this->_request, this->_response);
   
   std::string content;
@@ -74,7 +74,10 @@ bool  Client::send()
   
   if (!this->_response.isset("status"))
   {
+    std::cout << "HEADER" << std::endl;
     content.append(this->_response.get("header"));
+    if (!this->_request.isset("cgi") || !Parser::getExtension(this->_ressource).compare(".py"))
+      content.append("\r\n");
     offset = content.length();
     this->_response.set(Response::E_RESPONSE_HEADER);
   }
@@ -87,14 +90,19 @@ bool  Client::send()
   /*std::cout << "content :\n" << content << std::endl;*/
   ssize_t bwrite = ::send(this->_socket, content.c_str(), content.length(), MSG_NOSIGNAL);
 
-  /*std::cout << "send : " << bwrite << std::endl;*/
+  std::cout << "octet du content a envoyer : " << this->_response.bsend() << std::endl;
 
 
   if (bwrite == -1)
     throw Parser::WebservParseException("");
 
   this->_response.bsend((bwrite - offset) * -1);
-
+  
+  std::cout << "octet effectivement envoyer : " << bwrite << std::endl;
+  std::cout << "taille du header (hors cgi) : " << offset << std::endl;
+  std::cout << "octet de contenu envoye : " << bwrite - offset << std::endl;
+  std::cout << "reste a envoye : " << this->_response.bsend() << std::endl;
+  std::cout << std::endl;
   if (this->_response.bsend() == 0)
   {
     this->_response.pipe("close");
