@@ -7,4 +7,6 @@
 #include <iostream>
 #include <fstream> 
 
+#define BUFFER_SIZE 4096
+
 #endif

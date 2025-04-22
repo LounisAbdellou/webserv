@@ -55,7 +55,11 @@ private:
   Type                                            _type;
   int                                             _pipe[2];
   int                                             _size;
+	size_t																					_chunkSize;
   
+	std::string																			_chunk;
+	std::string																			_chunkContent;
+
   std::string                                     _method;
   std::string                                     _path;
   std::string                                     _query;
@@ -67,6 +71,7 @@ private:
   void                                            parseHeader(const char* buffer, size_t bread);
   void                                            parseArgs(const char* buffer, size_t bread);
   void                                            parseBody(const char* buffer, size_t bread);
+	void																						parseChunk(std::string buffer);
   
   void                                            setMethod(std::string& value);
   void                                            setPath(std::string& value);

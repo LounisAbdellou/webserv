@@ -20,8 +20,6 @@
 #include <netdb.h>
 
 
-#define BUFFER_SIZE 4096
-
 class Response;
 
 struct Entry {
