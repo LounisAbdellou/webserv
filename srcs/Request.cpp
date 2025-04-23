@@ -4,6 +4,7 @@
 Request::Request(Client& client) : _client(client), _status(E_REQUEST_CREATED), _type(E_REQUEST_OTHER)
 {
   _size = 0;
+	_chunkSize = 0;
   _pipe[0] = -1;
   _pipe[1] = -1;
   this->init();
@@ -158,9 +159,9 @@ void  Request::parseArgs(const char* buffer, size_t bread)
 
 void  Request::parseBody(const char* buffer, size_t bread)
 {
-  if (this->isset("chunk"))
+  if (this->_args["Transfer-Encoding"] == "chunked")
   {
-    // parseChunk le buffer
+		return this->parseChunk(std::string(buffer, bread));
   }
 
   this->_size -= this->_client.write((char*)buffer, bread);
@@ -173,6 +174,59 @@ void  Request::parseBody(const char* buffer, size_t bread)
 
   if (this->_size == 0)
     this->set(E_REQUEST_COMPLETE);
+}
+
+void	Request::parseChunk(std::string buffer)
+{
+  this->_chunk.append(buffer);
+
+  while (true) {
+    if (this->_chunkSize < 1) {
+      size_t pos = this->_chunk.find("\r\n");
+      if (pos == std::string::npos) {
+        return;
+      }
+
+      this->_chunk.erase(pos, 2);
+      this->_chunkContent.append(
+          this->_chunk.substr(pos, this->_chunk.size() - pos));
+      this->_chunk.erase(pos, this->_chunk.size() - pos);
+
+      this->_chunkSize = Parser::strtoll(this->_chunk, 16);
+      if (!this->_chunk.compare("0")) {
+        this->_status = Request::E_REQUEST_COMPLETE;
+        return;
+      }
+
+      this->_chunk.clear();
+    }
+
+    if (this->_chunk.size() > 0) {
+      this->_chunkContent.append(this->_chunk.substr(0, this->_chunk.size()));
+      this->_chunk.erase(0, this->_chunk.size());
+    }
+
+    if (this->_chunkSize + 2 > this->_chunkContent.size()) {
+      this->_chunkSize -= this->_chunkContent.size();
+      /*this->_body.append(
+          this->_chunkContent.substr(0, this->_chunkContent.size()));*/
+			this->_client.write((char *)this->_chunkContent.substr(0, this->_chunkContent.size()).c_str(),	this->_chunkContent.size());
+      this->_chunkContent.erase(0, this->_chunkContent.size());
+      return;
+    }
+
+    //this->_body.append(this->_chunkContent.substr(0, this->_chunkSize));
+		this->_client.write((char *)this->_chunkContent.substr(0, this->_chunkSize).c_str(), this->_chunkSize);
+    this->_chunkContent.erase(0, this->_chunkSize);
+    this->_chunkSize = 0;
+
+    if (this->_chunkContent.size() > 2) {
+      this->_chunk.append(
+          this->_chunkContent.substr(2, this->_chunkContent.size() - 2));
+    }
+
+    this->_chunkContent.clear();
+  }
 }
 
 bool  Request::update()
@@ -354,6 +408,8 @@ void  Request::clean()
   this->_size = 0;
   this->_method.clear();
   this->_path.clear();
+	this->_chunk.clear();
+	this->_chunkContent.clear();
   this->_query.clear();
   this->_protocol.clear();
   this->_chunked.clear();
