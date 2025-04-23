@@ -147,7 +147,7 @@ void  Webserv::configureServer(std::ifstream& file)
     key = Parser::getKey(line);
     
     if (!server->has(key))
-      Parser::throwError("Invalid server's instruction");
+      Parser::throwError("Invalid server's instruction => '" + key + "'");
       
     server->set(key, Parser::getValue(key, line));
   }
@@ -293,51 +293,44 @@ void  Webserv::run()
         socklen_t addr_len = sizeof(c_addr);
         int client_fd = accept(events[i].data.fd, (struct sockaddr *)&c_addr, &addr_len);
         if (client_fd < 0)
-          this->throwError("Accept failed");
-				int flag = fcntl(client_fd, F_GETFL, 0);
+          continue;
+        int flag = fcntl(client_fd, F_GETFL, 0);
         if (fcntl(client_fd, F_SETFL, flag | O_NONBLOCK) == -1)
           this->throwError("fcntl failed");
         e.events = EPOLLIN;
         e.data.fd = client_fd;
         if (epoll_ctl(this->_epoll_fd, EPOLL_CTL_ADD, client_fd, &e) == -1)
           this->throwError("Epoll add failed");
-        Client* client = new Client(events[i].data.fd, client_fd);
+        Client* client = new Client(*this->_sockets[events[i].data.fd]->front(), client_fd);
         if (this->_clients[client_fd])
           delete this->_clients[client_fd];
         this->_clients[client_fd] = client;
       }
       else if (this->_clients.find(events[i].data.fd) != this->_clients.end())
       {
-        Client* client = this->_clients[events[i].data.fd];
-        
-        if (events[i].events == EPOLLIN)
-        {
-          if (client->receive())
+        try 
+        {  
+          Client* client = this->_clients[events[i].data.fd];
+          if (events[i].events == EPOLLIN && client->receive())
           {
-            events[i].events = EPOLLOUT | EPOLLET;
+            events[i].events = EPOLLOUT;
             if (epoll_ctl(this->_epoll_fd, EPOLL_CTL_MOD, events[i].data.fd, &events[i]) == -1)
               this->throwError("Epoll mod failed");
-            continue;
           }
-        }
-
-        if (events[i].events == EPOLLOUT && !client->isClose())
-        {
-          Server* server = this->_sockets[client->getServerFd()]->front();
-					if (!server->isset("response"))
-						server->handle(client->getRequest());
-					int return_value = server->send(events[i].data.fd);
-          if (return_value == 1)
+          else if (events[i].events == EPOLLOUT && client->send())
           {
             events[i].events = EPOLLIN;
             if (epoll_ctl(this->_epoll_fd, EPOLL_CTL_MOD, events[i].data.fd, &events[i]) == -1)
               this->throwError("Epoll mod failed");
+            client->clean();
           }
-          else if (return_value == -1)
-            client->setIsClose(true);
         }
-
-        if (client->isClose()) this->close(events[i].data.fd);
+        catch (const std::exception& e) 
+        {
+          this->close(events[i].data.fd);
+          /*if (epoll_ctl(this->_epoll_fd, EPOLL_CTL_DEL, events[i].data.fd, &events[i]) == -1)*/
+          /*  this->throwError("Epoll mod failed");*/
+        }
       }
     }
   }
@@ -351,6 +344,7 @@ void  Webserv::close(int fd)
       delete this->_clients[fd];
     this->_clients.erase(fd);
   }
+  
   shutdown(fd, SHUT_RDWR);
   ::close(fd);
 }

@@ -1,11 +1,8 @@
 #ifndef __WEBSERV__
 #define __WEBSERV__
 
-#include <iostream>
-#include <fstream> 
-#include <string>
-#include <map>
-#include <vector>
+#include "Header.hpp"
+
 #include <queue>
 #include "Parser.hpp"
 #include "Server.hpp"

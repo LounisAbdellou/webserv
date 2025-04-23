@@ -1,63 +1,190 @@
 #include "Client.hpp"
 #include "Request.hpp"
-#include <sys/socket.h>
-#include <unistd.h>
 
-Client::Client(int serverFd, int clientFd)
-    : _serverFd(serverFd), _clientFd(clientFd), _request(clientFd),
-      _isClose(false) {}
-
-Client::Client(const Client &src)
-    : _serverFd(src._serverFd), _clientFd(src._clientFd),
-      _request(src._clientFd) {
-  *this = src;
+Client::Client(Server& server, int fd) : _socket(fd), _server(server), _request(*this) 
+{
+  ::bzero(this->_buffer, BUFFER_SIZE + 1);
+  this->init();
 }
 
-Client &Client::operator=(const Client &src) {
-  (void)src;
-  return *this;
+Client::~Client() {}
+
+void  Client::init()
+{
+  _setters["ressource"] = &Client::setRessource;
+  
+  _getters["ressource"] = &Client::getRessource;
+
 }
 
-int Client::getServerFd() const { return _serverFd; }
+void Client::set(const std::string key, std::string value) 
+{
+  if (this->_setters.find(key) == this->_setters.end()) return ;
+  (this->*_setters[key])(value);
+}
 
-int Client::getClientFd() const { return _clientFd; }
+bool Client::has(const std::string key) const 
+{
+  return !(this->_setters.find(key) == this->_setters.end());
+}
 
-Request &Client::getRequest() { return this->_request; }
+bool Client::isset(const std::string key) const 
+{
+  if (this->_getters.find(key) == this->_getters.end())
+    return false;
+  return (!(this->*_getters.at(key))().empty());
+}
 
-bool Client::isClose() const { return this->_isClose; }
+std::string Client::get(const std::string key) const 
+{
+  if (this->_getters.find(key) == this->_getters.end())
+    return "";
+  return (this->*_getters.at(key))();
+}
 
-void Client::setIsClose(bool value) { this->_isClose = value; }
+bool  Client::receive()
+{
+  ssize_t bread = recv(this->_socket, this->_buffer, BUFFER_SIZE - 1, MSG_DONTWAIT);
 
-bool Client::receive() {
-  char buffer[BUFFER_SIZE];
+  if (bread < 0)
+    throw Parser::WebservParseException("");
+  
+  /*std::cout << "Frag - " << bread << "\n" << this->_buffer << std::endl;*/
+  if (bread == 0)
+    throw Parser::WebservParseException("");
+  /*std::cout << "RECEIVE" << std::endl;*/
 
-  ssize_t bytesRead =
-      recv(this->_clientFd, buffer, BUFFER_SIZE - 1, MSG_DONTWAIT);
+  this->_buffer[bread] = '\0';
+  this->_request.parse(this->_buffer, bread);
+  ::bzero(this->_buffer, BUFFER_SIZE + 1);
+  return this->_request.isset("ready");
+}
 
-  if (bytesRead == -1) {
-    this->_request.setStatus(Request::E_REQUEST_BAD);
-    this->_request.setResponseCode(AHttpMessage::INTERNAL_SERVER_ERROR);
-    this->_isClose = true;
-    return true;
-    // } else if (bytesRead == 0) {
-    //
+bool  Client::send()
+{
+  if (!this->isset("ressource"))
+    this->set("ressource", this->_request.get("path"));
+  
+  if (!this->_request.get("type").compare("PIPE") && !this->_response.isset("cgi"))
+    this->_server.execute(this->_ressource, this->_request, this->_response);
+  
+  std::string content;
+  int offset = 0;
+  
+  if (!this->_response.isset("status"))
+  {
+    content.append(this->_response.get("header"));
+    if (!this->_request.isset("cgi") || !Parser::getExtension(this->_ressource).compare(".py"))
+      content.append("\r\n");
+    offset = content.length();
+    this->_response.set(Response::E_RESPONSE_HEADER);
   }
 
-  if (bytesRead > 0) {
-    std::string fragment(buffer, bytesRead);
+  if (!this->_response.isset("type"))
+    this->_response.set(Response::E_RESPONSE_COMPLETE);
+  else
+    content.append(this->read());
 
-    // std::cout << "///////////FRAGMENT/////////////" << std::endl;
-    // std::string::const_iterator it;
-    // for (it = fragment.begin(); it != fragment.end(); it++) {
-    //   if (isprint(*it)) {
-    //     std::cout << *it;
-    //   }
-    // }
-    // std::cout << std::endl;
-    // std::cout << "/////////////END////////////////" << std::endl;
+  /*std::cout << "content :\n" << content << std::endl;*/
+  ssize_t bwrite = ::send(this->_socket, content.c_str(), content.length(), MSG_NOSIGNAL);
 
-    this->_request.appendRawData(fragment);
+  if (bwrite == -1)
+    throw Parser::WebservParseException("");
+
+  this->_response.bsend((bwrite - offset) * -1);
+  
+  if (this->_response.bsend() == 0)
+  {
+    this->_response.pipe("close");
+    this->_request.pipe("close");
   }
 
-  return this->_request.getStatus() <= Request::E_REQUEST_COMPLETE;
+  ::bzero(this->_buffer, BUFFER_SIZE + 1);
+  return this->_response.isset("done");
+}
+
+int   Client::write(char* buffer, size_t bytes)
+{
+  if (!this->isset("ressource"))
+    this->set("ressource", this->_request.get("path"));
+
+  if (!this->_request.get("type").compare("DOC"))
+  {
+    if (!this->_request.isset("file"))
+    {
+      this->remove();
+      this->_request.set(Request::E_REQUEST_BODY);
+    }
+    
+    std::ofstream target(this->_ressource.c_str(), std::ios::app | std::ios::binary);
+    
+    target.write(buffer, bytes);
+
+    target.close();
+
+    return bytes;
+  }
+  
+  int* fd = this->_request.pipe("open");
+
+  return ::write(fd[1], buffer, bytes);
+}
+
+std::string   Client::read()
+{
+  std::string body;
+
+  if (!this->_response.get("type").compare("DOC"))
+  {
+    std::ifstream target(this->_ressource.c_str(), std::ios::binary);
+    target.seekg(this->_response.bsend() * -1, std::ios::end);
+    int bytes = target.readsome(this->_buffer, BUFFER_SIZE);
+    if (this->_response.bsend() - bytes == 0)
+      this->_response.set(Response::E_RESPONSE_COMPLETE);
+    std::string content(this->_buffer, bytes);
+    body.append(content);
+    target.close();
+  }
+  else
+  {
+    int* fd = this->_response.pipe("open");
+    int bytes = ::read(fd[0], this->_buffer, BUFFER_SIZE);
+    if (this->_response.bsend() - bytes == 0 || bytes == 0)
+      this->_response.set(Response::E_RESPONSE_COMPLETE);
+    body.append(this->_buffer);
+  }
+  return body;
+}
+
+bool  Client::remove()
+{
+  if (!this->isset("ressource"))
+    this->set("ressource", this->_request.get("path"));
+
+  if (::remove(this->_ressource.c_str()) == -1)
+    return false;
+
+  return true;
+}
+
+void  Client::setRessource(const std::string& value)
+{
+  this->_ressource = this->_server.handle(value, this->_request, this->_response);
+}
+
+std::string Client::getRessource() const
+{
+  return this->_ressource;
+}
+
+int Client::socket() const
+{
+  return this->_socket;
+}
+
+void  Client::clean()
+{
+  this->_request.clean();
+  this->_response.clean();
+  this->_ressource.clear();
 }
