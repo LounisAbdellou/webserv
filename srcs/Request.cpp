@@ -1,7 +1,7 @@
 #include "Request.hpp"
 #include "Client.hpp"
 
-Request::Request(Client& client) : _client(client), _status(E_REQUEST_CREATED), _type(E_REQUEST_OTHER)
+Request::Request(Client& client) : _client(client), _status(E_REQUEST_CREATED), _type(E_REQUEST_OTHER), _maxBody(false)
 {
   _size = 0;
 	_chunkSize = 0;
@@ -35,6 +35,7 @@ void  Request::init()
   _getters["file"] = &Request::getFile;
   _getters["list"] = &Request::getList;
   _getters["cgi"] = &Request::getCgi;
+  _getters["max_body"] = &Request::getMaxBody;
 }
 
 void Request::set(const std::string key, std::string value) 
@@ -191,6 +192,10 @@ void	Request::parseChunk(std::string buffer)
       this->_chunk.erase(pos, this->_chunk.size() - pos);
 
       this->_chunkSize = Parser::strtoll(this->_chunk, 16);
+      // J'crois c la mais j'suis pas sur... 
+      this->_size += this->_chunkSize;
+      if (this->_client.maxBody() > -1 && this->_size > this->_client.maxBody())
+        this->_maxBody = true;
       if (!this->_chunk.compare("0")) {
         this->_status = Request::E_REQUEST_COMPLETE;
         return;
@@ -244,10 +249,7 @@ bool  Request::update()
 void  Request::setMethod(std::string& value)
 {
   if (value.compare("GET") && value.compare("POST") && value.compare("DELETE"))
-  {
-    std::cout << "BAD 2" << std::endl;
     return this->set(E_REQUEST_BAD);
-  }
 
   if (!value.compare("POST"))
     this->set(E_REQUEST_POST);
@@ -319,6 +321,8 @@ void  Request::setPipe(std::string& value)
 void  Request::setSize(std::string& value)
 {
   this->_size = ::atoi(value.c_str());
+  if (this->_client.maxBody() > -1 && this->_size > this->_client.maxBody())
+    this->_maxBody = true;
 }
 
 std::string  Request::getMethod() const
@@ -383,11 +387,17 @@ std::string  Request::getCgi() const
   return this->_type == E_REQUEST_CGI ? "OK" : "";
 }
 
+std::string  Request::getMaxBody() const
+{
+  return this->_maxBody ? "OK" : "";
+}
+
 void  Request::clean()
 {
   this->set(E_REQUEST_CREATED);
   this->set(E_REQUEST_OTHER);
   this->_size = 0;
+  this->_maxBody = false;
   this->_method.clear();
   this->_path.clear();
 	this->_chunk.clear();

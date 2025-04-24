@@ -12,8 +12,10 @@ const std::string Response::NOT_FOUND = "404 Not Found";
 const std::string Response::FORBIDDEN = "403 Forbidden";
 const std::string Response::NOT_ALLOWED = "405 Method Not Allowed";
 const std::string Response::LENGTH_REQUIRED = "411 Length Required";
+const std::string Response::PAYLOAD_TOO_LARGE = "413 Payload Too Large";
 const std::string Response::HEADER_TOO_LARGE = "431 Request Header Fields Too Large";
 const std::string Response::INTERNAL_SERVER_ERROR = "500 Internal Server Error";
+const std::string Response::GAT_TIMEOUT = "504 Gateway Timeout";
 const std::string Response::HTTP_VERSION = "505 HTTP Version Not Supported";
 
 Response::Response() : _status(E_RESPONSE_CREATED), _type(E_RESPONSE_OTHER)
@@ -29,8 +31,10 @@ Response::Response() : _status(E_RESPONSE_CREATED), _type(E_RESPONSE_OTHER)
   _codes["403"] = FORBIDDEN;
   _codes["405"] = NOT_ALLOWED;
   _codes["411"] = LENGTH_REQUIRED;
+  _codes["413"] = PAYLOAD_TOO_LARGE;
   _codes["431"] = HEADER_TOO_LARGE;
   _codes["500"] = INTERNAL_SERVER_ERROR;
+  _codes["504"] = GAT_TIMEOUT;
   _codes["505"] = HTTP_VERSION;
 
   this->_pipe[0] = -1;

@@ -7,13 +7,11 @@
 #include "Parser.hpp"
 #include "Server.hpp"
 #include "Client.hpp"
-#include <fcntl.h>
 #include "Validator.hpp"
 #include <sys/types.h>    // Définitions de types (socklen_t, etc.)
 #include <sys/socket.h>   // socket(), bind(), listen(), accept(), send(), recv()
 #include <netinet/in.h>   // struct sockaddr_in (adresses IP)
 #include <arpa/inet.h> 
-#include <sys/epoll.h>    // epoll_create(), epoll_ctl(), epoll_wait()
 #include <stdlib.h>       // exit()
 #include <unistd.h>
 #include <cerrno>

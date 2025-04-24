@@ -301,7 +301,7 @@ void  Webserv::run()
         e.data.fd = client_fd;
         if (epoll_ctl(this->_epoll_fd, EPOLL_CTL_ADD, client_fd, &e) == -1)
           this->throwError("Epoll add failed");
-        Client* client = new Client(*this->_sockets[events[i].data.fd]->front(), client_fd);
+        Client* client = new Client(*this->_sockets[events[i].data.fd]->front(), client_fd, this->_max_body_size);
         if (this->_clients[client_fd])
           delete this->_clients[client_fd];
         this->_clients[client_fd] = client;

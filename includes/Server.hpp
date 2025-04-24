@@ -34,7 +34,7 @@ class Server {
     
     void                                      init();
     std::string                               handle(const std::string& path, Request& request, Response& response);
-    void                                      execute(const std::string& ressource, Request& request, Response& response);
+    void                                      execute(std::string& ressource, Request& request, Response& response);
     
     void                                      set(const std::string key, const std::string value);
     bool                                      set(const std::string key, Location* location);
@@ -68,9 +68,11 @@ class Server {
     void                                                            addPathIndex(std::string& ressource, Location* location);
     std::string                                                     handleError(std::string code, std::string& ressource, Location *location);
     
-    void                                                            cgi(const std::string& ressource, Request& request, Response& response);
+    void                                                            cgi(std::string& ressource, Request& request, Response& response);
     void                                                            listing(const std::string& ressource, Response& response);
     std::string                                                     setCgi(const std::string& ressource, Request& request, bool is_php);
+    void                                                            cgiResponse(const std::string& ressource, int req, int res, Response& response);
+    void                                                            cgiError(const std::string& ressource, Response& response, int res);
     
     void                                                            setListen(const std::string& value);
     void                                                            setServerName(const std::string& value);

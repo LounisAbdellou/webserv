@@ -55,6 +55,7 @@ private:
   Type                                            _type;
   int                                             _pipe[2];
   int                                             _size;
+  bool                                            _maxBody;
 	size_t																					_chunkSize;
   
 	std::string																			_chunk;
@@ -93,6 +94,7 @@ private:
   std::string                                     getFile() const;
   std::string                                     getList() const;
   std::string                                     getCgi() const;
+  std::string                                     getMaxBody() const;
 
 };
 

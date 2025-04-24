@@ -1,8 +1,9 @@
 #include "Client.hpp"
 #include "Request.hpp"
 
-Client::Client(Server& server, int fd) : _socket(fd), _server(server), _request(*this) 
+Client::Client(Server& server, int fd, const std::string& max_body) : _socket(fd), _server(server), _request(*this) 
 {
+  this->_max_body_size = Parser::strtoll(max_body, 10);
   ::bzero(this->_buffer, BUFFER_SIZE + 1);
   this->init();
 }
@@ -46,14 +47,9 @@ bool  Client::receive()
 {
   ssize_t bread = recv(this->_socket, this->_buffer, BUFFER_SIZE - 1, MSG_DONTWAIT);
 
-  if (bread < 0)
+  if (bread < 1)
     throw Parser::WebservParseException("");
   
-  /*std::cout << "Frag - " << bread << "\n" << this->_buffer << std::endl;*/
-  if (bread == 0)
-    throw Parser::WebservParseException("");
-  /*std::cout << "RECEIVE" << std::endl;*/
-
   this->_buffer[bread] = '\0';
   this->_request.parse(this->_buffer, bread);
   ::bzero(this->_buffer, BUFFER_SIZE + 1);
@@ -64,6 +60,9 @@ bool  Client::send()
 {
   if (!this->isset("ressource"))
     this->set("ressource", this->_request.get("path"));
+
+  if (!this->_request.get("method").compare("DELETE"))
+    this->remove();
   
   if (!this->_request.get("type").compare("PIPE") && !this->_response.isset("cgi"))
     this->_server.execute(this->_ressource, this->_request, this->_response);
@@ -85,7 +84,6 @@ bool  Client::send()
   else
     content.append(this->read());
 
-  /*std::cout << "content :\n" << content << std::endl;*/
   ssize_t bwrite = ::send(this->_socket, content.c_str(), content.length(), MSG_NOSIGNAL);
 
   if (bwrite == -1)
@@ -180,6 +178,11 @@ std::string Client::getRessource() const
 int Client::socket() const
 {
   return this->_socket;
+}
+
+int Client::maxBody() const
+{
+  return this->_max_body_size;
 }
 
 void  Client::clean()

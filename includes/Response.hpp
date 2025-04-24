@@ -19,8 +19,10 @@ class Response {
     static const std::string FORBIDDEN;
     static const std::string NOT_ALLOWED;
     static const std::string LENGTH_REQUIRED;
+    static const std::string PAYLOAD_TOO_LARGE;
     static const std::string HEADER_TOO_LARGE;
     static const std::string INTERNAL_SERVER_ERROR;
+    static const std::string GAT_TIMEOUT;
     static const std::string HTTP_VERSION;
 
     enum Status 
