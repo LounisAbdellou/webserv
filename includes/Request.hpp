@@ -64,7 +64,6 @@ private:
   std::string                                     _path;
   std::string                                     _query;
   std::string                                     _protocol;
-  std::string                                     _chunked;
   std::map<std::string, std::string>              _args;
 
   bool                                            update();

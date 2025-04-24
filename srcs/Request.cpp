@@ -25,7 +25,6 @@ void  Request::init()
   _setters["args"] = &Request::setArgs;
   _setters["size"] = &Request::setSize;
   _setters["pipe"] = &Request::setPipe;
-  _setters["chunk"] = &Request::setChunk;
   
   _getters["method"] = &Request::getMethod;
   _getters["path"] = &Request::getPath;
@@ -33,7 +32,6 @@ void  Request::init()
   _getters["protocol"] = &Request::getProtocol;
   _getters["ready"] = &Request::getReady;
   _getters["type"] = &Request::getType;
-  _getters["chunk"] = &Request::getChunk;
   _getters["file"] = &Request::getFile;
   _getters["list"] = &Request::getList;
   _getters["cgi"] = &Request::getCgi;
@@ -208,14 +206,11 @@ void	Request::parseChunk(std::string buffer)
 
     if (this->_chunkSize + 2 > this->_chunkContent.size()) {
       this->_chunkSize -= this->_chunkContent.size();
-      /*this->_body.append(
-          this->_chunkContent.substr(0, this->_chunkContent.size()));*/
 			this->_client.write((char *)this->_chunkContent.substr(0, this->_chunkContent.size()).c_str(),	this->_chunkContent.size());
       this->_chunkContent.erase(0, this->_chunkContent.size());
       return;
     }
 
-    //this->_body.append(this->_chunkContent.substr(0, this->_chunkSize));
 		this->_client.write((char *)this->_chunkContent.substr(0, this->_chunkSize).c_str(), this->_chunkSize);
     this->_chunkContent.erase(0, this->_chunkSize);
     this->_chunkSize = 0;
@@ -288,11 +283,6 @@ void  Request::setProtocol(std::string& value)
   this->_protocol = value;
 }
 
-void  Request::setChunk(std::string& value)
-{
-  this->_chunked = value;
-}
-
 void  Request::setArgs(std::string& value)
 {
   size_t del = value.find_first_of(":");
@@ -302,9 +292,6 @@ void  Request::setArgs(std::string& value)
   size_t val = value.find_first_not_of(" ", del + 1);
 
   this->_args[value.substr(1, del - 1)] = value.substr(val, value.find_last_not_of(" \r\n\t\v\f"));
-
-  if (!value.compare("Transfer-Encoding: chunked"))
-    this->set("chunk", "true");
 
   if (value.find("Content-Length") != std::string::npos)
     this->set("size", this->_args["Content-Length"]);
@@ -381,11 +368,6 @@ std::string  Request::getType() const
   return "";
 }
 
-std::string  Request::getChunk() const
-{
-  return this->_chunked;
-}
-
 std::string  Request::getFile() const
 {
   return this->_status == E_REQUEST_BODY ? "OK" : "";
@@ -412,7 +394,6 @@ void  Request::clean()
 	this->_chunkContent.clear();
   this->_query.clear();
   this->_protocol.clear();
-  this->_chunked.clear();
   this->_args.clear();
   if (this->_pipe[0] > 1)
     close(this->_pipe[0]);
