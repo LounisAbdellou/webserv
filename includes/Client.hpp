@@ -11,7 +11,7 @@ class Request;
 
 class Client {
 public:
-  Client(Server& server, int fd);
+  Client(Server& server, int fd, const std::string& max_body);
   ~Client();
 
   void          init();
@@ -19,6 +19,7 @@ public:
   bool          has(const std::string key) const;
   bool          isset(const std::string key) const;
   int           socket() const;
+  int           maxBody() const;
   std::string   get(const std::string key) const;
   void          clean();
 
@@ -36,7 +37,8 @@ private:
   const int     _socket;
   Server&       _server;
   Request       _request;                  
-  Response      _response;                  
+  Response      _response;
+  int           _max_body_size;
   char          _buffer[BUFFER_SIZE + 1];
   
   std::string   _ressource;

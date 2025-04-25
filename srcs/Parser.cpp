@@ -183,7 +183,7 @@ long long Parser::strtoll(const std::string &str, int base) {
   std::istringstream iss(str);
   std::string::const_iterator it = str.begin();
 
-  if (*it == '-') {
+  if (*it == '-' || str.empty()) {
     return -1;
   }
 

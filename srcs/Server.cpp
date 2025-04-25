@@ -136,6 +136,9 @@ std::string Server::handleRessource(std::string& ressource, Request& request, Re
 {
   Location *location = this->getLocation(ressource);
 
+  if (request.isset("max_body"))
+    return this->handleError("413", ressource, location);
+
   if (request.isset("error"))
     return this->handleError("400", ressource, location);
 
@@ -258,7 +261,7 @@ std::string Server::handleError(std::string code, std::string& ressource, Locati
   return code;
 }
 
-void  Server::execute(const std::string& ressource, Request& request, Response& response)
+void  Server::execute(std::string& ressource, Request& request, Response& response)
 {
   response.set(Response::E_RESPONSE_PIPE);
   if (request.isset("list"))
@@ -326,32 +329,102 @@ std::string Server::setCgi(const std::string& ressource, Request& request, bool 
   return "/bin/python3";
 }
 
-void  Server::cgi(const std::string& ressource, Request& request, Response& response)
+void  Server::cgi(std::string& ressource, Request& request, Response& response)
 {
   std::string cgi = this->setCgi(ressource, request, !Parser::getExtension(ressource).compare(".php"));
 
   int* req = request.pipe("open");
   int* res = response.pipe("open");
   int inter[] = { -1, -1 }; 
-
+  
+  struct epoll_event ev, events[1];
+  
   const char *args[] = {cgi.c_str(), ressource.c_str(), NULL};
   
-  pipe(inter);
+  if (pipe(inter) < 0)
+    throw std::exception();
+  
+  int flags = fcntl(inter[0], F_GETFL, 0);
+  fcntl(inter[0], F_SETFL, flags | O_NONBLOCK);
+  
   pid_t pid = fork();
+
+  if (pid < 0)
+  {
+    ::close(inter[0]);
+    ::close(inter[1]);
+    throw std::exception();
+  }
+
   if (pid == 0)
   {
     dup2(req[0], 0);
     dup2(inter[1], 1);
     request.pipe("close");
     response.pipe("close");
-    close(inter[0]);
-    close(inter[1]);
+    ::close(inter[0]);
+    ::close(inter[1]);
     execvp(cgi.c_str(), (char**)args);
   }
-  request.pipe("close");
-  close(inter[1]);
-  waitpid(pid, NULL, 0);
   
+  int epoll_fd = epoll_create1(0);
+
+  if (epoll_fd < 0)
+    throw std::exception();
+
+  ev.events = EPOLLIN;
+  ev.data.fd = inter[0];
+  if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, inter[0], &ev) == -1)
+    throw std::exception();
+  
+  int nfds = epoll_wait(epoll_fd, events, 1, 3000);
+
+  if (nfds < 0)
+    throw std::exception();
+  
+  request.pipe("close");
+  ::close(inter[1]);
+  ::close(epoll_fd);
+
+  if (nfds == 0)
+  {
+    ::close(inter[0]);
+    kill(pid, SIGKILL);
+    std::string code = this->handleError("504", ressource, this->getLocation(ressource));
+    response.set("header", code);
+    return this->cgiError(ressource, response, res[1]);
+  }
+
+  waitpid(pid, NULL, 0);
+  this->cgiResponse(ressource, inter[0], res[1], response);
+}
+
+void  Server::cgiError(const std::string& ressource, Response& response, int res)
+{
+  char buffer[BUFFER_SIZE + 1];
+  ::bzero(buffer, BUFFER_SIZE + 1);
+
+  int req = open(ressource.c_str(), O_RDONLY);
+  int len = 0;
+
+  if (req < 0)
+    throw std::exception();
+
+  ::write(res, "\r\n", 2);
+
+  while (::read(req, buffer, BUFFER_SIZE))
+  {
+    len += ::write(res, buffer, ::strlen(buffer));
+    ::bzero(buffer, BUFFER_SIZE + 1);
+  }
+  response.bsend(len + 2);
+  response.add("Content-Length", Parser::to_string(len));
+  response.set(Response::E_RESPONSE_CGI);
+  ::close(req);
+}
+
+void  Server::cgiResponse(const std::string& ressource, int req, int res, Response& response)
+{
   char buffer[BUFFER_SIZE + 1];
   
   ::bzero(buffer, BUFFER_SIZE + 1);
@@ -360,26 +433,27 @@ void  Server::cgi(const std::string& ressource, Request& request, Response& resp
   
   if (!Parser::getExtension(ressource).compare(".php"))
   {
-    ::read(inter[0], buffer, BUFFER_SIZE);
+    ::read(req, buffer, BUFFER_SIZE);
 
     std::string str = buffer;
 
     if (str.find("\r\n\r\n") != std::string::npos)
       offset = str.find("\r\n\r\n") + 4;
     
-    response.bsend(::write(res[1], buffer, ::strlen(buffer)));
+    response.bsend(::write(res, buffer, ::strlen(buffer)));
     
     ::bzero(buffer, BUFFER_SIZE + 1);
   }
 
-  while (::read(inter[0], buffer, BUFFER_SIZE))
+  while (::read(req, buffer, BUFFER_SIZE))
   {
-    response.bsend(::write(res[1], buffer, ::strlen(buffer)));
+    response.bsend(::write(res, buffer, ::strlen(buffer)));
     ::bzero(buffer, BUFFER_SIZE + 1);
   }
   response.add("Content-Length", Parser::to_string(response.bsend() - offset));
   response.set(Response::E_RESPONSE_CGI);
-  close(inter[0]);
+  close(req);
+
 }
 
 void Server::setListen(const std::string &value) 
